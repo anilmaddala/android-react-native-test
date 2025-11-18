@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("com.facebook.react")
 }
 
 android {
@@ -42,6 +43,8 @@ android {
 }
 
 dependencies {
+    implementation("com.facebook.react:react-android")
+    implementation("com.facebook.react:hermes-android")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -58,4 +61,21 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+val projectRoot = File(rootDir.absoluteFile, "skydio-expo-app").absolutePath
+
+react {
+    entryFile.set(file(listOf("node", "-e", "require('expo/scripts/resolveAppEntry')", projectRoot, "android", "absolute").execute(null, rootDir).text.trim()))
+    reactNativeDir.set(File(listOf("node", "--print", "require.resolve('react-native/package.json')").execute(null, rootDir).text.trim()).parentFile.absoluteFile)
+    hermesCommand.set(File(listOf("node", "--print", "require.resolve('react-native/package.json')").execute(null, rootDir).text.trim()).parentFile.absolutePath + "/sdks/hermesc/%OS-BIN%/hermesc")
+    codegenDir.set(File(listOf("node", "--print", "require.resolve('@react-native/codegen/package.json', { paths: [require.resolve('react-native/package.json')] })").execute(null, rootDir).text.trim()).parentFile.absoluteFile)
+    enableBundleCompression.set(false)
+
+    // Use Expo CLI to bundle the app, this ensures the Metro config works correctly with Expo projects.
+    cliFile.set(File(listOf("node", "--print", "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })").execute(null, rootDir).text.trim()))
+    bundleCommand.set("export:embed")
+
+    /* Autolinking */
+    autolinkLibrariesWithApp()
 }
