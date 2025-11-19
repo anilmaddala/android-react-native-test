@@ -17,4 +17,8 @@ Steps to get to current state:
   - Take the [Can't move your native projects to android and ios directories?](https://docs.expo.dev/brownfield/get-started/#cant-move-your-native-projects-to-android) section
     - `printf '{\n  "version": "1.0.0",\n  "private": true,\n  "workspaces": ["skydio-expo-app"]\n}\n' > package.json`
   - Edit `settings.gradle`, `build.gradle`, `app/build.gradle`, `gradle.properties`
-  - Launch
+  - Edit `MainApplication.kt`, `MainActivity.kt`, `AndroidManifest.xml`
+- Launch the app
+  - `yarn start`
+  - `adb reverse tcp:8081 tcp:8081`
+  - Launch App in Android Studio
