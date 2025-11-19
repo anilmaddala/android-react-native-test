@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Skydio Android(App"
-include(":app")
+rootProject.name = "SkydioAndroidApp"
+include ':app'
