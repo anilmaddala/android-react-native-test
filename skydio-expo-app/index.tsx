@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, AppRegistry } from 'react-native';
+import ComposeCounterView from './components/ComposeCounterView.android';
 
 console.log('index.tsx is loading...');
 
@@ -8,6 +9,7 @@ const App: React.FC = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.text}>Hello World from React Native!</Text>
+      <ComposeCounterView style={styles.counter} />
     </View>
   );
 };
@@ -23,6 +25,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
+  },
+  counter: {
+    flex: 1,
+    alignSelf: 'stretch',
+    width: '100%',
   },
 });
 
