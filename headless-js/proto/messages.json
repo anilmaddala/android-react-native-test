@@ -1,0 +1,183 @@
+{
+  "nested": {
+    "app": {
+      "nested": {
+        "Command": {
+          "fields": {
+            "requestId": {
+              "type": "string",
+              "id": 1
+            },
+            "increment": {
+              "type": "IncrementCommand",
+              "id": 2
+            },
+            "addUser": {
+              "type": "AddUserCommand",
+              "id": 3
+            },
+            "getState": {
+              "type": "GetStateCommand",
+              "id": 4
+            },
+            "multiply": {
+              "type": "MultiplyCommand",
+              "id": 5
+            }
+          },
+          "oneofs": {
+            "commandType": {
+              "oneof": ["increment", "addUser", "getState", "multiply"]
+            }
+          }
+        },
+        "Response": {
+          "fields": {
+            "requestId": {
+              "type": "string",
+              "id": 1
+            },
+            "success": {
+              "type": "bool",
+              "id": 2
+            },
+            "error": {
+              "type": "string",
+              "id": 3
+            },
+            "counter": {
+              "type": "CounterResponse",
+              "id": 4
+            },
+            "userList": {
+              "type": "UserListResponse",
+              "id": 5
+            },
+            "state": {
+              "type": "StateResponse",
+              "id": 6
+            },
+            "calculation": {
+              "type": "CalculationResponse",
+              "id": 7
+            }
+          },
+          "oneofs": {
+            "responseData": {
+              "oneof": ["counter", "userList", "state", "calculation"]
+            }
+          }
+        },
+        "IncrementCommand": {
+          "fields": {
+            "amount": {
+              "type": "int32",
+              "id": 1
+            }
+          }
+        },
+        "AddUserCommand": {
+          "fields": {
+            "name": {
+              "type": "string",
+              "id": 1
+            },
+            "email": {
+              "type": "string",
+              "id": 2
+            },
+            "age": {
+              "type": "int32",
+              "id": 3
+            }
+          }
+        },
+        "GetStateCommand": {
+          "fields": {}
+        },
+        "MultiplyCommand": {
+          "fields": {
+            "a": {
+              "type": "int32",
+              "id": 1
+            },
+            "b": {
+              "type": "int32",
+              "id": 2
+            }
+          }
+        },
+        "CounterResponse": {
+          "fields": {
+            "newValue": {
+              "type": "int32",
+              "id": 1
+            }
+          }
+        },
+        "UserListResponse": {
+          "fields": {
+            "users": {
+              "rule": "repeated",
+              "type": "User",
+              "id": 1
+            },
+            "totalCount": {
+              "type": "int32",
+              "id": 2
+            }
+          }
+        },
+        "StateResponse": {
+          "fields": {
+            "counter": {
+              "type": "int32",
+              "id": 1
+            },
+            "users": {
+              "rule": "repeated",
+              "type": "User",
+              "id": 2
+            },
+            "lastUpdated": {
+              "type": "int64",
+              "id": 3
+            }
+          }
+        },
+        "CalculationResponse": {
+          "fields": {
+            "result": {
+              "type": "int32",
+              "id": 1
+            }
+          }
+        },
+        "User": {
+          "fields": {
+            "id": {
+              "type": "string",
+              "id": 1
+            },
+            "name": {
+              "type": "string",
+              "id": 2
+            },
+            "email": {
+              "type": "string",
+              "id": 3
+            },
+            "age": {
+              "type": "int32",
+              "id": 4
+            },
+            "createdAt": {
+              "type": "int64",
+              "id": 5
+            }
+          }
+        }
+      }
+    }
+  }
+}

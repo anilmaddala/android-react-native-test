@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package app;
+
+// Command sent from Compose to TypeScript
+message Command {
+  string request_id = 1;  // To match request with response
+
+  oneof command_type {
+    IncrementCommand increment = 2;
+    AddUserCommand add_user = 3;
+    GetStateCommand get_state = 4;
+    MultiplyCommand multiply = 5;
+  }
+}
+
+// Response sent from TypeScript back to Compose
+message Response {
+  string request_id = 1;  // Matches the request
+  bool success = 2;
+  string error = 3;  // Error message if success = false
+
+  oneof response_data {
+    CounterResponse counter = 4;
+    UserListResponse user_list = 5;
+    StateResponse state = 6;
+    CalculationResponse calculation = 7;
+  }
+}
+
+// Command types
+message IncrementCommand {
+  int32 amount = 1;  // How much to increment by
+}
+
+message AddUserCommand {
+  string name = 1;
+  string email = 2;
+  int32 age = 3;
+}
+
+message GetStateCommand {
+  // No fields needed
+}
+
+message MultiplyCommand {
+  int32 a = 1;
+  int32 b = 2;
+}
+
+// Response types
+message CounterResponse {
+  int32 new_value = 1;
+}
+
+message UserListResponse {
+  repeated User users = 1;
+  int32 total_count = 2;
+}
+
+message StateResponse {
+  int32 counter = 1;
+  repeated User users = 2;
+  int64 last_updated = 3;  // Timestamp
+}
+
+message CalculationResponse {
+  int32 result = 1;
+}
+
+// Data models
+message User {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  int32 age = 4;
+  int64 created_at = 5;
+}

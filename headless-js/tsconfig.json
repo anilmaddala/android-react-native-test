@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "commonjs",
+    "lib": ["es2017"],
+    "jsx": "react-native",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true
+  },
+  "exclude": ["node_modules"]
+}

@@ -101,8 +101,7 @@ fun SkydioAndroidAppApp() {
     ) {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
             when (currentDestination) {
-                AppDestinations.HOME -> Greeting(
-                    name = "Android",
+                AppDestinations.HOME -> ProtobufDemoScreen(
                     modifier = Modifier.padding(innerPadding)
                 )
                 AppDestinations.FAVORITES -> ReactNativeView(
