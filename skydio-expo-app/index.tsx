@@ -1,40 +1,14 @@
-import React from 'react';
-import { View, Text, StyleSheet, AppRegistry } from 'react-native';
-import ComposeCounterView from './components/ComposeCounterView.android';
+/**
+ * React Native Entry Point
+ *
+ * This is the headless entry point for React Native.
+ * It initializes the business logic runtime without rendering any UI.
+ *
+ * All UI is handled by Jetpack Compose in the Android native layer.
+ * React Native is used purely for executing TypeScript business logic.
+ */
 
-console.log('index.tsx is loading...');
+// Import and initialize the headless runtime
+import './src/headless';
 
-const App: React.FC = () => {
-  console.log('App component is rendering');
-  return (
-    <View style={styles.container}>
-      <Text style={styles.text}>Hello World from React Native!</Text>
-      <ComposeCounterView style={styles.counter} />
-    </View>
-  );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-  },
-  text: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  counter: {
-    flex: 1,
-    alignSelf: 'stretch',
-    width: '100%',
-  },
-});
-
-console.log('Registering component "main"');
-AppRegistry.registerComponent('main', () => App);
-console.log('Component "main" registered');
-
-export default App;
+console.log('[Index] React Native entry point loaded (headless mode)');
