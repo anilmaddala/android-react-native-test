@@ -24,10 +24,9 @@ class MainApplication : Application(), ReactApplication {
         object : DefaultReactNativeHost(this) {
             override fun getPackages(): List<ReactPackage> =
                 PackageList(this).packages.apply {
-                    // Packages that cannot be autolinked yet can be added manually here, for example:
-                    // add(MyReactNativePackage())
+                    // Packages that cannot be autolinked yet can be added manually here
+                    // Note: BusinessLogicModule is auto-discovered by Expo Modules
                     add(ComposeCounterPackage())
-                    add(ReactNativeBridgePackage())
                 }
 
             override fun getJSMainModuleName(): String = "skydio-expo-app/index"
