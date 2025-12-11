@@ -1,0 +1,33 @@
+{
+  "name": "skydio-rn-business-logic",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "react-native start",
+    "android": "react-native run-android",
+    "lint": "eslint .",
+    "proto:generate": "pbjs -t static-module -w es6 -o src/generated/commands.js ../proto/commands.proto && pbts -o src/generated/commands.d.ts src/generated/commands.js"
+  },
+  "dependencies": {
+    "buffer": "^6.0.3",
+    "protobufjs": "^7.5.4",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "zustand": "^5.0.9"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@babel/preset-env": "^7.26.0",
+    "@babel/runtime": "^7.26.0",
+    "@react-native-community/cli": "^20.0.2",
+    "@react-native-community/cli-platform-android": "^20.0.2",
+    "@react-native/babel-preset": "0.81.5",
+    "@react-native/metro-config": "0.81.5",
+    "@react-native/typescript-config": "0.81.5",
+    "@types/react": "^19.1.0",
+    "metro-react-native-babel-preset": "0.77.0",
+    "protobufjs-cli": "^1.1.3",
+    "typescript": "~5.9.2"
+  }
+}
