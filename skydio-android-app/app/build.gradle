@@ -75,9 +75,9 @@ dependencies {
     implementation project(':expo-modules-core')
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
-    // Protobuf
+    // Protobuf (lite runtime - must use kotlin-lite to avoid conflict with javalite)
     implementation libs.protobuf.javalite
-    implementation libs.protobuf.kotlin
+    implementation libs.protobuf.kotlin.lite
     implementation libs.androidx.core.ktx
     implementation libs.androidx.lifecycle.runtime.ktx
     implementation libs.androidx.activity.compose

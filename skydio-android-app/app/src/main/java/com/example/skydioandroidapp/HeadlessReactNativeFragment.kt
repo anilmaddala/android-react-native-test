@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.fragment.app.Fragment
 import com.facebook.react.ReactHost
+import com.facebook.react.ReactInstanceEventListener
 import com.facebook.react.bridge.ReactContext
 
 /**
@@ -59,7 +60,7 @@ class HeadlessReactNativeFragment : Fragment() {
             Log.d(TAG, "React Native host obtained, starting runtime")
 
             // Listen for React Native ready state
-            host.addReactInstanceEventListener(object : ReactHost.ReactInstanceEventListener {
+            host.addReactInstanceEventListener(object : ReactInstanceEventListener {
                 override fun onReactContextInitialized(context: ReactContext) {
                     Log.d(TAG, "React context initialized - Expo modules are now available")
                     isReactNativeReady = true
