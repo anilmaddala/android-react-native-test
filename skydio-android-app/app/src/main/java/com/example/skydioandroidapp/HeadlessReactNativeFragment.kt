@@ -15,6 +15,11 @@ import com.facebook.react.bridge.ReactContext
  * - Kotlin sends commands via CommandBridge native module
  * - TypeScript processes commands and responds back
  *
+ * Lazy Initialization:
+ * - This fragment triggers React Native initialization on-demand
+ * - Application.onCreate() has NO React Native code
+ * - RN is only loaded when this fragment is added to an Activity
+ *
  * Usage:
  * 1. Add this fragment to your activity
  * 2. Wait for isReady() to return true
@@ -45,6 +50,15 @@ class HeadlessReactNativeFragment : Fragment() {
         if (application == null) {
             Log.e(TAG, "Application is not MainApplication, cannot initialize React Native")
             return
+        }
+
+        // Trigger lazy initialization of React Native
+        // This is where SoLoader, New Architecture, and ReactHost are created
+        if (!application.isReactNativeInitialized()) {
+            Log.d(TAG, "Triggering lazy React Native initialization")
+            application.initializeReactNative()
+        } else {
+            Log.d(TAG, "React Native already initialized")
         }
 
         reactHost = application.reactHost
