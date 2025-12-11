@@ -41,7 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.FragmentActivity
 import com.example.skydioandroidapp.proto.Response
 import com.example.skydioandroidapp.ui.theme.SkydioAndroidAppTheme
 
@@ -59,7 +59,7 @@ import com.example.skydioandroidapp.ui.theme.SkydioAndroidAppTheme
  * - Generated Kotlin classes: Command, Response, User, Configuration, etc.
  * - If proto changes, both Kotlin and TypeScript must be updated
  */
-class MainActivity : AppCompatActivity() {
+class MainActivity : FragmentActivity() {
 
     companion object {
         private const val TAG = "MainActivity"

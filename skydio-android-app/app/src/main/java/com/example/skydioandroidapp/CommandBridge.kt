@@ -3,12 +3,12 @@ package com.example.skydioandroidapp
 import android.util.Base64
 import android.util.Log
 import com.example.skydioandroidapp.proto.*
-import expo.modules.kotlin.modules.Module
-import expo.modules.kotlin.modules.ModuleDefinition
+import com.facebook.react.bridge.*
+import com.facebook.react.modules.core.DeviceEventManagerModule
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * CommandBridge - Expo Module for type-safe bidirectional Kotlin ↔ TypeScript communication
+ * CommandBridge - React Native Native Module for type-safe bidirectional Kotlin ↔ TypeScript communication
  *
  * Uses Protocol Buffers for compile-time type safety between Kotlin and TypeScript.
  *
@@ -28,10 +28,12 @@ import java.util.concurrent.ConcurrentHashMap
  *       }
  *   }
  */
-class CommandBridge : Module() {
+class CommandBridge(private val reactContext: ReactApplicationContext) :
+    ReactContextBaseJavaModule(reactContext), LifecycleEventListener {
 
     companion object {
         private const val TAG = "CommandBridge"
+        const val NAME = "CommandBridge"
 
         // Singleton instance for Kotlin access
         @Volatile
@@ -78,7 +80,7 @@ class CommandBridge : Module() {
             Log.d(TAG, "Sending command: ${command.commandCase}, callbackId: ${command.callbackId}")
 
             // Send event to TypeScript
-            bridge.sendEvent("onCommand", mapOf("data" to base64))
+            bridge.sendEvent("onCommand", base64)
         }
 
         // ==========================================
@@ -261,47 +263,92 @@ class CommandBridge : Module() {
                 Log.e(TAG, "Failed to parse response: ${e.message}")
             }
         }
+
+        /**
+         * Check if bridge is initialized
+         */
+        fun isInitialized(): Boolean = instance != null
     }
 
-    override fun definition() = ModuleDefinition {
-        Name("CommandBridge")
+    override fun getName(): String = NAME
 
-        // Event sent to TypeScript when Kotlin wants to execute a command
-        Events("onCommand")
+    override fun initialize() {
+        super.initialize()
+        instance = this
+        reactContext.addLifecycleEventListener(this)
+        Log.d(TAG, "CommandBridge initialized")
+    }
 
-        // Called when the module is created
-        OnCreate {
-            instance = this@CommandBridge
-            Log.d(TAG, "CommandBridge initialized")
-        }
+    override fun invalidate() {
+        super.invalidate()
+        instance = null
+        pendingCallbacks.clear()
+        reactContext.removeLifecycleEventListener(this)
+        Log.d(TAG, "CommandBridge invalidated")
+    }
 
-        // Called when the module is destroyed
-        OnDestroy {
-            instance = null
-            pendingCallbacks.clear()
-            Log.d(TAG, "CommandBridge destroyed")
-        }
+    /**
+     * Send event to JavaScript
+     */
+    private fun sendEvent(eventName: String, data: String) {
+        reactContext
+            .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+            .emit(eventName, data)
+    }
 
-        /**
-         * Called by TypeScript to send a response back to Kotlin (protobuf base64)
-         */
-        Function("sendResponse") { base64Data: String ->
-            Log.d(TAG, "sendResponse called")
-            handleResponse(base64Data)
-        }
+    /**
+     * Called by TypeScript to send a response back to Kotlin (protobuf base64)
+     */
+    @ReactMethod
+    fun sendResponse(base64Data: String) {
+        Log.d(TAG, "sendResponse called")
+        handleResponse(base64Data)
+    }
 
-        /**
-         * Called by TypeScript to notify that it's ready to receive commands
-         */
-        Function("notifyReady") {
-            Log.d(TAG, "TypeScript runtime is ready")
-        }
+    /**
+     * Called by TypeScript to notify that it's ready to receive commands
+     */
+    @ReactMethod
+    fun notifyReady() {
+        Log.d(TAG, "TypeScript runtime is ready")
+    }
 
-        /**
-         * Utility function to check if the bridge is ready
-         */
-        Function("isReady") {
-            instance != null
-        }
+    /**
+     * Utility function to check if the bridge is ready
+     */
+    @ReactMethod(isBlockingSynchronousMethod = true)
+    fun isReady(): Boolean {
+        return instance != null
+    }
+
+    /**
+     * Required for NativeEventEmitter support
+     */
+    @ReactMethod
+    fun addListener(eventName: String) {
+        // Keep: Required for RN built-in Event Emitter support
+        Log.d(TAG, "addListener called for: $eventName")
+    }
+
+    /**
+     * Required for NativeEventEmitter support
+     */
+    @ReactMethod
+    fun removeListeners(count: Int) {
+        // Keep: Required for RN built-in Event Emitter support
+        Log.d(TAG, "removeListeners called: $count")
+    }
+
+    // Lifecycle events
+    override fun onHostResume() {
+        Log.d(TAG, "onHostResume")
+    }
+
+    override fun onHostPause() {
+        Log.d(TAG, "onHostPause")
+    }
+
+    override fun onHostDestroy() {
+        Log.d(TAG, "onHostDestroy")
     }
 }

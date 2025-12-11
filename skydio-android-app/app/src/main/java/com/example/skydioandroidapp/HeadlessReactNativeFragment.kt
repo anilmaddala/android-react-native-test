@@ -12,19 +12,13 @@ import com.facebook.react.bridge.ReactContext
  *
  * Architecture:
  * - Business logic lives in TypeScript using Zustand state management
- * - Kotlin sends commands via CommandBridge Expo module
+ * - Kotlin sends commands via CommandBridge native module
  * - TypeScript processes commands and responds back
  *
  * Usage:
  * 1. Add this fragment to your activity
  * 2. Wait for isReady() to return true
  * 3. Use CommandBridge.sendCommand() to invoke TypeScript business logic
- *
- * From Kotlin:
- *   CommandBridge.sendCommand("increment", emptyMap()) { result, error ->
- *       if (error != null) { /* handle error */ }
- *       else { /* use result */ }
- *   }
  */
 class HeadlessReactNativeFragment : Fragment() {
 
@@ -55,14 +49,13 @@ class HeadlessReactNativeFragment : Fragment() {
 
         reactHost = application.reactHost
 
-        // Start React Native instance if not already started
         reactHost?.let { host ->
             Log.d(TAG, "React Native host obtained, starting runtime")
 
             // Listen for React Native ready state
             host.addReactInstanceEventListener(object : ReactInstanceEventListener {
                 override fun onReactContextInitialized(context: ReactContext) {
-                    Log.d(TAG, "React context initialized - Expo modules are now available")
+                    Log.d(TAG, "React context initialized - Native modules are now available")
                     isReactNativeReady = true
 
                     // Notify ready listener
@@ -72,7 +65,7 @@ class HeadlessReactNativeFragment : Fragment() {
                 }
             })
 
-            // Start the React Native runtime in headless mode
+            // Start the React Native runtime
             host.start()
         }
     }
