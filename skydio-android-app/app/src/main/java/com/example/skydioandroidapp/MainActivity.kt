@@ -42,16 +42,22 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
+import com.example.skydioandroidapp.proto.Response
 import com.example.skydioandroidapp.ui.theme.SkydioAndroidAppTheme
 
 /**
- * MainActivity demonstrates Kotlin → TypeScript communication via CommandBridge.
+ * MainActivity demonstrates type-safe Kotlin ↔ TypeScript communication via Protocol Buffers.
  *
  * Architecture:
  * - Business logic lives in TypeScript (Zustand stores)
- * - Kotlin sends commands via CommandBridge
- * - TypeScript processes and responds
+ * - Kotlin sends typed protobuf commands via CommandBridge
+ * - TypeScript processes and responds with typed protobuf responses
  * - All UI is Jetpack Compose
+ *
+ * Compile-time type safety:
+ * - Commands are defined in proto/commands.proto
+ * - Generated Kotlin classes: Command, Response, User, Configuration, etc.
+ * - If proto changes, both Kotlin and TypeScript must be updated
  */
 class MainActivity : FragmentActivity() {
 
@@ -73,9 +79,7 @@ class MainActivity : FragmentActivity() {
             SkydioAndroidAppTheme {
                 SkydioAndroidAppApp(
                     isReactNativeReady = { headlessFragment?.isReady() == true },
-                    onSendCommand = { command, params, callback ->
-                        sendCommand(command, params, callback)
-                    }
+                    onRunOnUiThread = { runOnUiThread(it) }
                 )
             }
         }
@@ -96,19 +100,6 @@ class MainActivity : FragmentActivity() {
 
         headlessFragment = fragment
     }
-
-    private fun sendCommand(
-        command: String,
-        params: Map<String, Any?>,
-        callback: (Any?, String?) -> Unit
-    ) {
-        Log.d(TAG, "Sending command: $command")
-        CommandBridge.sendCommand(command, params) { result, error ->
-            runOnUiThread {
-                callback(result, error)
-            }
-        }
-    }
 }
 
 enum class AppDestinations(
@@ -123,7 +114,7 @@ enum class AppDestinations(
 @Composable
 fun SkydioAndroidAppApp(
     isReactNativeReady: () -> Boolean,
-    onSendCommand: (String, Map<String, Any?>, (Any?, String?) -> Unit) -> Unit
+    onRunOnUiThread: (() -> Unit) -> Unit
 ) {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
 
@@ -147,8 +138,8 @@ fun SkydioAndroidAppApp(
                 )
                 AppDestinations.DEMO -> DemoScreen(
                     modifier = Modifier.padding(innerPadding),
-                    onSendCommand = onSendCommand,
-                    isReactNativeReady = isReactNativeReady
+                    isReactNativeReady = isReactNativeReady,
+                    onRunOnUiThread = onRunOnUiThread
                 )
                 AppDestinations.ARCHITECTURE -> ArchitectureScreen(
                     modifier = Modifier.padding(innerPadding)
@@ -180,7 +171,7 @@ fun HomeScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Zustand + CommandBridge Demo",
+            text = "Protobuf + Zustand Demo",
             style = MaterialTheme.typography.headlineMedium
         )
 
@@ -215,8 +206,9 @@ fun HomeScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "Business logic runs in TypeScript with Zustand state management.\n\n" +
-                   "Kotlin sends commands via CommandBridge → TypeScript processes → responds.\n\n" +
+            text = "Type-safe Kotlin ↔ TypeScript communication using Protocol Buffers.\n\n" +
+                   "Commands/responses defined in proto/commands.proto.\n\n" +
+                   "Compile-time safety: If proto changes, both sides must update.\n\n" +
                    "Go to Demo tab to test commands.",
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(horizontal = 16.dp)
@@ -227,12 +219,28 @@ fun HomeScreen(
 @Composable
 fun DemoScreen(
     modifier: Modifier = Modifier,
-    onSendCommand: (String, Map<String, Any?>, (Any?, String?) -> Unit) -> Unit,
-    isReactNativeReady: () -> Boolean
+    isReactNativeReady: () -> Boolean,
+    onRunOnUiThread: (() -> Unit) -> Unit
 ) {
     val results = remember { mutableStateListOf<String>() }
     var isLoading by remember { mutableStateOf(false) }
     var counter by remember { mutableStateOf(0) }
+
+    // Helper to format response result
+    fun formatResponse(response: Response): String {
+        return when (response.resultCase) {
+            Response.ResultCase.COUNTER -> "counter: ${response.counter.value}"
+            Response.ResultCase.USER -> "user: ${response.user.user.name} (${response.user.user.email})"
+            Response.ResultCase.USERS -> "users: ${response.users.usersList.map { it.name }}"
+            Response.ResultCase.SUCCESS -> "success: ${response.success.success}"
+            Response.ResultCase.SUM -> "result: ${response.sum.result}"
+            Response.ResultCase.VALIDATION -> "isValid: ${response.validation.isValid}, errors: ${response.validation.errorsList}"
+            Response.ResultCase.CONFIGURATION -> "config: v${response.configuration.config.version}"
+            Response.ResultCase.STATE -> "state: counter=${response.state.counter}, users=${response.state.usersList.size}"
+            Response.ResultCase.ERROR -> "ERROR: ${response.error.message}"
+            else -> "Unknown response type"
+        }
+    }
 
     Column(
         modifier = modifier
@@ -241,24 +249,25 @@ fun DemoScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("Execute TypeScript Commands", style = MaterialTheme.typography.headlineSmall)
+        Text("Type-Safe Protobuf Commands", style = MaterialTheme.typography.headlineSmall)
         Text("Counter: $counter", style = MaterialTheme.typography.titleLarge)
 
         HorizontalDivider()
 
-        // Counter commands
+        // Counter commands - using typed API
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(
                 onClick = {
                     isLoading = true
-                    onSendCommand("increment", emptyMap()) { result, error ->
-                        isLoading = false
-                        if (error != null) {
-                            results.add(0, "increment ERROR: $error")
-                        } else {
-                            val newCounter = (result as? Map<*, *>)?.get("counter") as? Number
-                            counter = newCounter?.toInt() ?: counter
-                            results.add(0, "increment: counter = $counter")
+                    CommandBridge.increment { response ->
+                        onRunOnUiThread {
+                            isLoading = false
+                            if (response.hasError()) {
+                                results.add(0, "increment ERROR: ${response.error.message}")
+                            } else {
+                                counter = response.counter.value
+                                results.add(0, "increment: ${formatResponse(response)}")
+                            }
                         }
                     }
                 },
@@ -268,14 +277,15 @@ fun DemoScreen(
             Button(
                 onClick = {
                     isLoading = true
-                    onSendCommand("decrement", emptyMap()) { result, error ->
-                        isLoading = false
-                        if (error != null) {
-                            results.add(0, "decrement ERROR: $error")
-                        } else {
-                            val newCounter = (result as? Map<*, *>)?.get("counter") as? Number
-                            counter = newCounter?.toInt() ?: counter
-                            results.add(0, "decrement: counter = $counter")
+                    CommandBridge.decrement { response ->
+                        onRunOnUiThread {
+                            isLoading = false
+                            if (response.hasError()) {
+                                results.add(0, "decrement ERROR: ${response.error.message}")
+                            } else {
+                                counter = response.counter.value
+                                results.add(0, "decrement: ${formatResponse(response)}")
+                            }
                         }
                     }
                 },
@@ -285,14 +295,15 @@ fun DemoScreen(
             Button(
                 onClick = {
                     isLoading = true
-                    onSendCommand("getCounter", emptyMap()) { result, error ->
-                        isLoading = false
-                        if (error != null) {
-                            results.add(0, "getCounter ERROR: $error")
-                        } else {
-                            val newCounter = (result as? Map<*, *>)?.get("counter") as? Number
-                            counter = newCounter?.toInt() ?: counter
-                            results.add(0, "getCounter: $counter")
+                    CommandBridge.getCounter { response ->
+                        onRunOnUiThread {
+                            isLoading = false
+                            if (response.hasError()) {
+                                results.add(0, "getCounter ERROR: ${response.error.message}")
+                            } else {
+                                counter = response.counter.value
+                                results.add(0, "getCounter: ${formatResponse(response)}")
+                            }
                         }
                     }
                 },
@@ -302,33 +313,37 @@ fun DemoScreen(
 
         HorizontalDivider()
 
-        // Calculate Sum
+        // Calculate Sum - using typed API
         Button(
             onClick = {
                 isLoading = true
-                onSendCommand("calculateSum", mapOf("a" to 6, "b" to 7)) { result, error ->
-                    isLoading = false
-                    if (error != null) {
-                        results.add(0, "calculateSum ERROR: $error")
-                    } else {
-                        results.add(0, "calculateSum(6, 7): ${(result as? Map<*, *>)?.get("result")}")
+                CommandBridge.calculateSum(6, 7) { response ->
+                    onRunOnUiThread {
+                        isLoading = false
+                        if (response.hasError()) {
+                            results.add(0, "calculateSum ERROR: ${response.error.message}")
+                        } else {
+                            results.add(0, "calculateSum(6, 7): ${formatResponse(response)}")
+                        }
                     }
                 }
             },
             enabled = !isLoading,
             modifier = Modifier.fillMaxWidth()
-        ) { Text("Calculate 6 × 7 = ?") }
+        ) { Text("Calculate 6 + 7 = ?") }
 
-        // Add User
+        // Add User - using typed API
         Button(
             onClick = {
                 isLoading = true
-                onSendCommand("addUser", mapOf("name" to "John Doe", "email" to "john@example.com")) { result, error ->
-                    isLoading = false
-                    if (error != null) {
-                        results.add(0, "addUser ERROR: $error")
-                    } else {
-                        results.add(0, "addUser: ${result}")
+                CommandBridge.addUser("John Doe", "john@example.com") { response ->
+                    onRunOnUiThread {
+                        isLoading = false
+                        if (response.hasError()) {
+                            results.add(0, "addUser ERROR: ${response.error.message}")
+                        } else {
+                            results.add(0, "addUser: ${formatResponse(response)}")
+                        }
                     }
                 }
             },
@@ -336,17 +351,18 @@ fun DemoScreen(
             modifier = Modifier.fillMaxWidth()
         ) { Text("Add User") }
 
-        // Get Users
+        // Get Users - using typed API
         Button(
             onClick = {
                 isLoading = true
-                onSendCommand("getUsers", emptyMap()) { result, error ->
-                    isLoading = false
-                    if (error != null) {
-                        results.add(0, "getUsers ERROR: $error")
-                    } else {
-                        val users = (result as? Map<*, *>)?.get("users")
-                        results.add(0, "getUsers: $users")
+                CommandBridge.getUsers { response ->
+                    onRunOnUiThread {
+                        isLoading = false
+                        if (response.hasError()) {
+                            results.add(0, "getUsers ERROR: ${response.error.message}")
+                        } else {
+                            results.add(0, "getUsers: ${formatResponse(response)}")
+                        }
                     }
                 }
             },
@@ -354,16 +370,18 @@ fun DemoScreen(
             modifier = Modifier.fillMaxWidth()
         ) { Text("Get Users") }
 
-        // Get State
+        // Get State - using typed API
         Button(
             onClick = {
                 isLoading = true
-                onSendCommand("getState", emptyMap()) { result, error ->
-                    isLoading = false
-                    if (error != null) {
-                        results.add(0, "getState ERROR: $error")
-                    } else {
-                        results.add(0, "getState: $result")
+                CommandBridge.getState { response ->
+                    onRunOnUiThread {
+                        isLoading = false
+                        if (response.hasError()) {
+                            results.add(0, "getState ERROR: ${response.error.message}")
+                        } else {
+                            results.add(0, "getState: ${formatResponse(response)}")
+                        }
                     }
                 }
             },
@@ -371,16 +389,18 @@ fun DemoScreen(
             modifier = Modifier.fillMaxWidth()
         ) { Text("Get Full State") }
 
-        // Validate Input
+        // Validate Input - using typed API
         Button(
             onClick = {
                 isLoading = true
-                onSendCommand("validateInput", mapOf("email" to "invalid", "password" to "short")) { result, error ->
-                    isLoading = false
-                    if (error != null) {
-                        results.add(0, "validateInput ERROR: $error")
-                    } else {
-                        results.add(0, "validateInput: $result")
+                CommandBridge.validateInput("invalid", "short") { response ->
+                    onRunOnUiThread {
+                        isLoading = false
+                        if (response.hasError()) {
+                            results.add(0, "validateInput ERROR: ${response.error.message}")
+                        } else {
+                            results.add(0, "validateInput: ${formatResponse(response)}")
+                        }
                     }
                 }
             },
@@ -441,7 +461,9 @@ fun ArchitectureScreen(modifier: Modifier = Modifier) {
                 Text("Kotlin Side", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "• CommandBridge.kt - Sends commands to TypeScript\n" +
+                    "• proto/commands.proto - Schema definition\n" +
+                    "• CommandBridge.kt - Type-safe command methods\n" +
+                    "• Generated protobuf classes (Command, Response, etc.)\n" +
                     "• HeadlessReactNativeFragment.kt - RN lifecycle\n" +
                     "• MainActivity.kt - Compose UI",
                     style = MaterialTheme.typography.bodySmall
@@ -457,6 +479,8 @@ fun ArchitectureScreen(modifier: Modifier = Modifier) {
                 Text("TypeScript Side", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
+                    "• generated/commands.js - Generated protobuf code\n" +
+                    "• generated/commands.d.ts - TypeScript types\n" +
                     "• stores/appStore.ts - Zustand state & business logic\n" +
                     "• bridge/commandHandler.ts - Processes commands\n" +
                     "• src/headless.ts - Entry point",
@@ -473,11 +497,12 @@ fun ArchitectureScreen(modifier: Modifier = Modifier) {
                 Text("Data Flow", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "1. Kotlin: CommandBridge.sendCommand(\"increment\")\n" +
-                    "2. Event → TypeScript CommandHandler\n" +
-                    "3. CommandHandler → Zustand store.increment()\n" +
-                    "4. Result → CommandBridge.sendResponse()\n" +
-                    "5. Kotlin callback receives result",
+                    "1. Kotlin: CommandBridge.increment() [typed]\n" +
+                    "2. Serialize Command protobuf → base64\n" +
+                    "3. Event → TypeScript CommandHandler\n" +
+                    "4. Deserialize → Zustand store.increment()\n" +
+                    "5. Serialize Response protobuf → base64\n" +
+                    "6. Kotlin callback receives typed Response",
                     style = MaterialTheme.typography.bodySmall
                 )
             }
@@ -488,14 +513,14 @@ fun ArchitectureScreen(modifier: Modifier = Modifier) {
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("Benefits", style = MaterialTheme.typography.titleMedium)
+                Text("Type Safety Benefits", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "✓ Business logic in TypeScript\n" +
-                    "✓ Zustand for state management\n" +
-                    "✓ Hot reload for JS changes\n" +
-                    "✓ Full npm ecosystem access\n" +
-                    "✓ Minimal bridge code",
+                    "✓ Compile-time validation on both sides\n" +
+                    "✓ No string-based command names\n" +
+                    "✓ Typed parameters and responses\n" +
+                    "✓ Schema evolution support\n" +
+                    "✓ IDE autocomplete and refactoring",
                     style = MaterialTheme.typography.bodySmall
                 )
             }

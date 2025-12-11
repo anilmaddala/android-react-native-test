@@ -1,27 +1,32 @@
 import { requireNativeModule, NativeModule } from 'expo-modules-core';
+import { Buffer } from 'buffer';
 import { useAppStore } from '../stores/appStore';
+import { commands } from '../generated/commands';
+
+// Import types from generated protobuf
+const { Command, Response } = commands;
+type ICommand = commands.ICommand;
+type IResponse = commands.IResponse;
 
 /**
  * CommandBridge native module interface
  */
-interface CommandBridgeModule extends NativeModule<{ onCommand: CommandEvent }> {
-  sendResponse(callbackId: string, result: Record<string, any> | null): void;
-  sendError(callbackId: string, errorMessage: string): void;
+interface CommandBridgeModule extends NativeModule<{ onCommand: { data: string } }> {
+  sendResponse(base64Data: string): void;
   notifyReady(): void;
   isReady(): boolean;
-}
-
-interface CommandEvent {
-  command: string;
-  params: Record<string, any>;
-  callbackId: string;
 }
 
 // Get the native module
 const CommandBridge = requireNativeModule<CommandBridgeModule>('CommandBridge');
 
 /**
- * Command handler that processes commands from Kotlin using Zustand
+ * Command handler that processes protobuf commands from Kotlin using Zustand
+ *
+ * This handler provides compile-time type safety:
+ * - Commands are defined in proto/commands.proto
+ * - TypeScript types are generated from the proto file
+ * - If a command is added/removed, both Kotlin and TypeScript must be updated
  */
 class CommandHandler {
   private isInitialized = false;
@@ -35,7 +40,7 @@ class CommandHandler {
       return;
     }
 
-    console.log('[CommandHandler] Initializing...');
+    console.log('[CommandHandler] Initializing with protobuf support...');
 
     // Listen for commands from Kotlin
     CommandBridge.addListener('onCommand', this.handleCommand.bind(this));
@@ -48,93 +53,253 @@ class CommandHandler {
   }
 
   /**
-   * Handle incoming command from Kotlin
+   * Handle incoming protobuf command from Kotlin
    */
-  private async handleCommand(event: CommandEvent): Promise<void> {
-    const { command, params, callbackId } = event;
-    console.log(`[CommandHandler] Received command: ${command}`, params);
-
+  private async handleCommand(event: { data: string }): Promise<void> {
     try {
-      const result = await this.processCommand(command, params);
-      console.log(`[CommandHandler] Command ${command} succeeded:`, result);
-      CommandBridge.sendResponse(callbackId, result);
+      // Decode base64 to bytes
+      const bytes = Buffer.from(event.data, 'base64');
+
+      // Decode protobuf Command message
+      const command = Command.decode(bytes);
+
+      console.log(`[CommandHandler] Received command type: ${command.command}, callbackId: ${command.callbackId}`);
+
+      // Process command and get response
+      const response = await this.processCommand(command);
+
+      // Encode response to protobuf bytes
+      const responseBytes = Response.encode(response).finish();
+
+      // Encode to base64 and send back
+      const base64Response = Buffer.from(responseBytes).toString('base64');
+      CommandBridge.sendResponse(base64Response);
+
+      console.log(`[CommandHandler] Sent response for ${command.command}`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`[CommandHandler] Command ${command} failed:`, errorMessage);
-      CommandBridge.sendError(callbackId, errorMessage);
+      console.error('[CommandHandler] Error processing command:', error);
+
+      // Send error response
+      const errorResponse: IResponse = {
+        callbackId: 'unknown',
+        error: {
+          message: error instanceof Error ? error.message : String(error),
+        },
+      };
+
+      const responseBytes = Response.encode(Response.create(errorResponse)).finish();
+      const base64Response = Buffer.from(responseBytes).toString('base64');
+      CommandBridge.sendResponse(base64Response);
     }
   }
 
   /**
-   * Process a command using the Zustand store
+   * Process a typed protobuf command using the Zustand store
    */
-  private async processCommand(
-    command: string,
-    params: Record<string, any>
-  ): Promise<Record<string, any>> {
+  private async processCommand(command: commands.Command): Promise<IResponse> {
     const store = useAppStore.getState();
+    const callbackId = command.callbackId;
 
-    switch (command) {
-      // Counter operations
-      case 'increment':
+    // Handle each command type with full type safety
+    switch (command.command) {
+      case 'increment': {
         store.increment();
-        return { counter: useAppStore.getState().counter };
+        return {
+          callbackId,
+          counter: { value: useAppStore.getState().counter },
+        };
+      }
 
-      case 'decrement':
+      case 'decrement': {
         store.decrement();
-        return { counter: useAppStore.getState().counter };
+        return {
+          callbackId,
+          counter: { value: useAppStore.getState().counter },
+        };
+      }
 
-      case 'setCounter':
-        store.setCounter(params.value ?? 0);
-        return { counter: useAppStore.getState().counter };
+      case 'setCounter': {
+        const value = command.setCounter?.value ?? 0;
+        store.setCounter(value);
+        return {
+          callbackId,
+          counter: { value: useAppStore.getState().counter },
+        };
+      }
 
-      case 'getCounter':
-        return { counter: store.counter };
+      case 'getCounter': {
+        return {
+          callbackId,
+          counter: { value: store.counter },
+        };
+      }
 
-      // User operations
-      case 'addUser':
-        const newUser = store.addUser(params.name ?? '', params.email ?? '');
-        return { user: newUser };
+      case 'addUser': {
+        const name = command.addUser?.name ?? '';
+        const email = command.addUser?.email ?? '';
+        const newUser = store.addUser(name, email);
+        return {
+          callbackId,
+          user: {
+            user: {
+              id: newUser.id,
+              name: newUser.name,
+              email: newUser.email,
+              createdAt: newUser.createdAt,
+            },
+          },
+        };
+      }
 
-      case 'removeUser':
-        store.removeUser(params.id ?? '');
-        return { success: true };
+      case 'removeUser': {
+        const id = command.removeUser?.id ?? '';
+        store.removeUser(id);
+        return {
+          callbackId,
+          success: { success: true },
+        };
+      }
 
-      case 'getUsers':
-        return { users: store.getUsers() };
+      case 'getUsers': {
+        const users = store.getUsers();
+        return {
+          callbackId,
+          users: {
+            users: users.map((u) => ({
+              id: u.id,
+              name: u.name,
+              email: u.email,
+              createdAt: u.createdAt,
+            })),
+          },
+        };
+      }
 
-      // Calculation
-      case 'calculateSum':
-        const sum = store.calculateSum(params.a ?? 0, params.b ?? 0);
-        return { result: sum };
+      case 'calculateSum': {
+        const a = command.calculateSum?.a ?? 0;
+        const b = command.calculateSum?.b ?? 0;
+        const result = store.calculateSum(a, b);
+        return {
+          callbackId,
+          sum: { result },
+        };
+      }
 
-      // Validation
-      case 'validateInput':
-        const validation = store.validateInput(
-          params.email ?? '',
-          params.password ?? ''
-        );
-        return validation;
+      case 'validateInput': {
+        const email = command.validateInput?.email ?? '';
+        const password = command.validateInput?.password ?? '';
+        const validation = store.validateInput(email, password);
+        return {
+          callbackId,
+          validation: {
+            isValid: validation.isValid,
+            errors: validation.errors,
+          },
+        };
+      }
 
-      // Async operations
-      case 'fetchUserData':
-        const userData = await store.fetchUserData(params.userId ?? '');
-        return { user: userData };
+      case 'fetchUserData': {
+        const userId = command.fetchUserData?.userId ?? '';
+        const userData = await store.fetchUserData(userId);
+        return {
+          callbackId,
+          user: {
+            user: {
+              id: userData.id,
+              name: userData.name,
+              email: userData.email,
+              createdAt: userData.createdAt,
+            },
+          },
+        };
+      }
 
-      // Configuration
-      case 'getConfiguration':
-        return { config: store.getConfiguration() };
+      case 'getConfiguration': {
+        const config = store.getConfiguration();
+        return {
+          callbackId,
+          configuration: {
+            config: {
+              version: config.version,
+              features: {
+                analytics: config.features.analytics,
+                notifications: config.features.notifications,
+                darkMode: config.features.darkMode,
+              },
+              apiEndpoint: config.apiEndpoint,
+              maxRetries: config.maxRetries,
+            },
+          },
+        };
+      }
 
-      case 'updateConfiguration':
-        store.updateConfiguration(params.config ?? {});
-        return { config: useAppStore.getState().config };
+      case 'updateConfiguration': {
+        const protoConfig = command.updateConfiguration?.config;
+        if (protoConfig) {
+          store.updateConfiguration({
+            version: protoConfig.version ?? undefined,
+            features: protoConfig.features
+              ? {
+                  analytics: protoConfig.features.analytics ?? false,
+                  notifications: protoConfig.features.notifications ?? false,
+                  darkMode: protoConfig.features.darkMode ?? false,
+                }
+              : undefined,
+            apiEndpoint: protoConfig.apiEndpoint ?? undefined,
+            maxRetries: protoConfig.maxRetries ?? undefined,
+          });
+        }
+        const updatedConfig = useAppStore.getState().config;
+        return {
+          callbackId,
+          configuration: {
+            config: {
+              version: updatedConfig.version,
+              features: {
+                analytics: updatedConfig.features.analytics,
+                notifications: updatedConfig.features.notifications,
+                darkMode: updatedConfig.features.darkMode,
+              },
+              apiEndpoint: updatedConfig.apiEndpoint,
+              maxRetries: updatedConfig.maxRetries,
+            },
+          },
+        };
+      }
 
-      // Get full state
-      case 'getState':
-        return store.getState();
+      case 'getState': {
+        const state = store.getState();
+        return {
+          callbackId,
+          state: {
+            counter: state.counter,
+            users: state.users.map((u) => ({
+              id: u.id,
+              name: u.name,
+              email: u.email,
+              createdAt: u.createdAt,
+            })),
+            config: {
+              version: state.config.version,
+              features: {
+                analytics: state.config.features.analytics,
+                notifications: state.config.features.notifications,
+                darkMode: state.config.features.darkMode,
+              },
+              apiEndpoint: state.config.apiEndpoint,
+              maxRetries: state.config.maxRetries,
+            },
+          },
+        };
+      }
 
-      default:
-        throw new Error(`Unknown command: ${command}`);
+      default: {
+        // This should never happen if proto is in sync
+        return {
+          callbackId,
+          error: { message: `Unknown command: ${command.command}` },
+        };
+      }
     }
   }
 
@@ -142,7 +307,6 @@ class CommandHandler {
    * Cleanup
    */
   destroy(): void {
-    // Remove listener if needed
     this.isInitialized = false;
     console.log('[CommandHandler] Destroyed');
   }

@@ -1,0 +1,211 @@
+syntax = "proto3";
+
+package commands;
+
+option java_package = "com.example.skydioandroidapp.proto";
+option java_multiple_files = true;
+
+// ============================================
+// Command Envelope - wraps all commands
+// ============================================
+
+message Command {
+  string callback_id = 1;
+  oneof command {
+    // Counter commands
+    IncrementCommand increment = 10;
+    DecrementCommand decrement = 11;
+    SetCounterCommand set_counter = 12;
+    GetCounterCommand get_counter = 13;
+
+    // User commands
+    AddUserCommand add_user = 20;
+    RemoveUserCommand remove_user = 21;
+    GetUsersCommand get_users = 22;
+
+    // Calculation commands
+    CalculateSumCommand calculate_sum = 30;
+
+    // Validation commands
+    ValidateInputCommand validate_input = 40;
+
+    // Async commands
+    FetchUserDataCommand fetch_user_data = 50;
+
+    // Configuration commands
+    GetConfigurationCommand get_configuration = 60;
+    UpdateConfigurationCommand update_configuration = 61;
+
+    // State commands
+    GetStateCommand get_state = 70;
+  }
+}
+
+// ============================================
+// Response Envelope - wraps all responses
+// ============================================
+
+message Response {
+  string callback_id = 1;
+  oneof result {
+    ErrorResponse error = 2;
+
+    // Counter responses
+    CounterResponse counter = 10;
+
+    // User responses
+    UserResponse user = 20;
+    UsersResponse users = 21;
+    SuccessResponse success = 22;
+
+    // Calculation responses
+    SumResponse sum = 30;
+
+    // Validation responses
+    ValidationResponse validation = 40;
+
+    // Configuration responses
+    ConfigurationResponse configuration = 60;
+
+    // State responses
+    StateResponse state = 70;
+  }
+}
+
+// ============================================
+// Counter Commands
+// ============================================
+
+message IncrementCommand {}
+
+message DecrementCommand {}
+
+message SetCounterCommand {
+  int32 value = 1;
+}
+
+message GetCounterCommand {}
+
+// ============================================
+// User Commands
+// ============================================
+
+message AddUserCommand {
+  string name = 1;
+  string email = 2;
+}
+
+message RemoveUserCommand {
+  string id = 1;
+}
+
+message GetUsersCommand {}
+
+// ============================================
+// Calculation Commands
+// ============================================
+
+message CalculateSumCommand {
+  int32 a = 1;
+  int32 b = 2;
+}
+
+// ============================================
+// Validation Commands
+// ============================================
+
+message ValidateInputCommand {
+  string email = 1;
+  string password = 2;
+}
+
+// ============================================
+// Async Commands
+// ============================================
+
+message FetchUserDataCommand {
+  string user_id = 1;
+}
+
+// ============================================
+// Configuration Commands
+// ============================================
+
+message GetConfigurationCommand {}
+
+message UpdateConfigurationCommand {
+  Configuration config = 1;
+}
+
+// ============================================
+// State Commands
+// ============================================
+
+message GetStateCommand {}
+
+// ============================================
+// Response Types
+// ============================================
+
+message ErrorResponse {
+  string message = 1;
+}
+
+message CounterResponse {
+  int32 value = 1;
+}
+
+message UserResponse {
+  User user = 1;
+}
+
+message UsersResponse {
+  repeated User users = 1;
+}
+
+message SuccessResponse {
+  bool success = 1;
+}
+
+message SumResponse {
+  int32 result = 1;
+}
+
+message ValidationResponse {
+  bool is_valid = 1;
+  repeated string errors = 2;
+}
+
+message ConfigurationResponse {
+  Configuration config = 1;
+}
+
+message StateResponse {
+  int32 counter = 1;
+  repeated User users = 2;
+  Configuration config = 3;
+}
+
+// ============================================
+// Shared Types
+// ============================================
+
+message User {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  int64 created_at = 4;
+}
+
+message Configuration {
+  string version = 1;
+  Features features = 2;
+  string api_endpoint = 3;
+  int32 max_retries = 4;
+}
+
+message Features {
+  bool analytics = 1;
+  bool notifications = 2;
+  bool dark_mode = 3;
+}
