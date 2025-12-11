@@ -9,17 +9,21 @@ import com.facebook.react.bridge.ReactContext
 /**
  * A headless Fragment that manages React Native lifecycle without rendering any UI.
  *
- * With Expo Modules API, the business logic is defined in BusinessLogicModule
- * and automatically exposed to both TypeScript and Kotlin - no manual bridge needed!
+ * Architecture:
+ * - Business logic lives in TypeScript using Zustand state management
+ * - Kotlin sends commands via CommandBridge Expo module
+ * - TypeScript processes commands and responds back
  *
  * Usage:
  * 1. Add this fragment to your activity
  * 2. Wait for isReady() to return true
- * 3. Call BusinessLogicModule methods directly (they're Expo modules)
+ * 3. Use CommandBridge.sendCommand() to invoke TypeScript business logic
  *
- * From TypeScript:
- *   import BusinessLogic from './modules/business-logic';
- *   const result = await BusinessLogic.calculateSum(5, 3);
+ * From Kotlin:
+ *   CommandBridge.sendCommand("increment", emptyMap()) { result, error ->
+ *       if (error != null) { /* handle error */ }
+ *       else { /* use result */ }
+ *   }
  */
 class HeadlessReactNativeFragment : Fragment() {
 

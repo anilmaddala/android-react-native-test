@@ -12,7 +12,7 @@ import expo.modules.kotlin.modules.Module
 class AppExpoModulesPackage : Package {
     override fun createModules(): List<Class<out Module>> {
         return listOf(
-            BusinessLogicModule::class.java
+            CommandBridge::class.java
         )
     }
 }
