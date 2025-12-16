@@ -141,24 +141,64 @@ tasks.register("generateJsProtobufs", Exec) {
     commandLine "npm", "run", "proto:generate"
 }
 
-// Clean generated JS files
+// Generate bridge code (Kotlin + TypeScript) from proto service definitions
+def kotlinGeneratedDir = file("$projectDir/src/main/java/com/example/skydioandroidapp/generated")
+def generatorScript = file("$workspaceRoot/scripts/generate-bridge.js")
+
+tasks.register("generateBridgeCode", Exec) {
+    description = "Generate Kotlin and TypeScript bridge code from proto service definitions"
+    group = "react native"
+    dependsOn("generateJsProtobufs")
+    workingDir workspaceRoot
+
+    def protoFile = file("$protoDir/commands.proto")
+    def kotlinOutput = file("$kotlinGeneratedDir/CommandBridge.kt")
+    def tsOutput = file("$jsGeneratedDir/commandHandler.ts")
+
+    inputs.file(protoFile)
+    inputs.file(generatorScript)
+    outputs.file(kotlinOutput)
+    outputs.file(tsOutput)
+
+    doFirst {
+        kotlinGeneratedDir.mkdirs()
+        jsGeneratedDir.mkdirs()
+    }
+
+    commandLine "node", generatorScript
+}
+
+// Clean all generated files (JS + Kotlin)
+tasks.register("cleanGenerated", Delete) {
+    description = "Clean all generated files"
+    group = "react native"
+    delete jsGeneratedDir
+    delete kotlinGeneratedDir
+}
+
+// Clean generated JS files (legacy task name)
 tasks.register("cleanJsGenerated", Delete) {
     description = "Clean generated JavaScript protobuf files"
     group = "react native"
     delete jsGeneratedDir
 }
 
-// Hook JS clean into main clean task
+// Hook clean into main clean task
 tasks.named("clean") {
-    dependsOn("cleanJsGenerated")
+    dependsOn("cleanGenerated")
 }
 
-// Make React Native tasks depend on JS protobuf generation
+// Make build tasks depend on code generation
 tasks.configureEach { task ->
+    // React Native bundling depends on JS protobuf generation
     if (task.name.contains("bundle") || task.name.contains("Bundle") ||
         task.name.contains("Hermes") || task.name.contains("ReactNative") ||
         task.name.contains("generateCodegen")) {
-        task.dependsOn("generateJsProtobufs")
+        task.dependsOn("generateBridgeCode")
+    }
+    // Kotlin compilation depends on bridge code generation
+    if (task.name == "compileDebugKotlin" || task.name == "compileReleaseKotlin") {
+        task.dependsOn("generateBridgeCode")
     }
 }
 

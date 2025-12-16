@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
+import com.example.skydioandroidapp.generated.CommandBridge
 import com.example.skydioandroidapp.ui.theme.SkydioAndroidAppTheme
 import dagger.hilt.android.AndroidEntryPoint
 
