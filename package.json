@@ -3,5 +3,8 @@
   "private": true,
   "workspaces": [
     "skydio-rn-business-logic"
-  ]
+  ],
+  "devDependencies": {
+    "yaml": "^2.7.0"
+  }
 }

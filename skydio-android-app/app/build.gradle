@@ -142,8 +142,9 @@ tasks.register("generateJsProtobufs", Exec) {
 }
 
 // Generate bridge code (Kotlin + TypeScript) from proto service definitions
-def kotlinGeneratedDir = file("$projectDir/src/main/java/com/example/skydioandroidapp/generated")
+def bridgeConfig = file("$workspaceRoot/bridge.yaml")
 def generatorScript = file("$workspaceRoot/scripts/generate-bridge.js")
+def kotlinGeneratedDir = file("$projectDir/src/main/java/com/example/skydioandroidapp/generated")
 
 tasks.register("generateBridgeCode", Exec) {
     description = "Generate Kotlin and TypeScript bridge code from proto service definitions"
@@ -156,6 +157,7 @@ tasks.register("generateBridgeCode", Exec) {
     def tsOutput = file("$jsGeneratedDir/commandHandler.ts")
 
     inputs.file(protoFile)
+    inputs.file(bridgeConfig)
     inputs.file(generatorScript)
     outputs.file(kotlinOutput)
     outputs.file(tsOutput)
@@ -165,7 +167,7 @@ tasks.register("generateBridgeCode", Exec) {
         jsGeneratedDir.mkdirs()
     }
 
-    commandLine "node", generatorScript
+    commandLine "node", generatorScript, "--config", bridgeConfig
 }
 
 // Clean all generated files (JS + Kotlin)

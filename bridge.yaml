@@ -1,0 +1,21 @@
+# Bridge Code Generator Configuration
+# Similar to Djinni's configuration approach
+
+# Proto source
+proto:
+  file: proto/commands.proto
+
+# Kotlin generation settings
+kotlin:
+  package: com.example.skydioandroidapp.generated
+  out_dir: skydio-android-app/app/src/main/java
+  class_name: CommandBridge
+  # Proto package for imports (from proto java_package option)
+  proto_package: com.example.skydioandroidapp.proto
+
+# TypeScript generation settings
+typescript:
+  out_dir: skydio-rn-business-logic/src/generated
+  module_name: commandHandler
+  # Import path for generated protobuf types
+  proto_import: ./commands

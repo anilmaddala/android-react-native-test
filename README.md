@@ -8,6 +8,8 @@ A native Android app with React Native embedded as a headless fragment for busin
 ├── skydio-android-app/       # Native Android app (Kotlin + Jetpack Compose)
 ├── skydio-rn-business-logic/ # TypeScript/React Native business logic
 ├── proto/                    # Protocol Buffer definitions
+├── scripts/                  # Code generation scripts
+├── bridge.yaml               # Bridge generator configuration
 └── node_modules/             # Shared dependencies (npm workspaces)
 ```
 
@@ -16,7 +18,7 @@ A native Android app with React Native embedded as a headless fragment for busin
 - **Native UI**: Jetpack Compose for all user interface
 - **Business Logic**: React Native runs headlessly in a fragment
 - **Communication**: Protocol Buffers for type-safe native ↔ JS messaging
-- **Lazy Initialization**: React Native only loads when needed
+- **Code Generation**: Bridge code auto-generated from proto definitions
 
 ## Prerequisites
 
@@ -34,15 +36,60 @@ cd skydio-android-app
 ```
 
 This will automatically:
-1. Install npm dependencies (if needed)
+1. Install npm dependencies
 2. Generate protobuf files (JS and Kotlin)
-3. Bundle React Native JavaScript
-4. Build the Android APK
+3. Generate bridge code (Kotlin and TypeScript)
+4. Bundle React Native JavaScript
+5. Build the Android APK
 
 ### Clean Build
 
 ```bash
 ./gradlew clean assembleDebug
+```
+
+## Adding New Commands
+
+1. **Edit `proto/commands.proto`** - Add service RPC and messages:
+   ```protobuf
+   service CounterService {
+     rpc NewCommand(NewRequest) returns (NewResponse);
+   }
+
+   message NewRequest { ... }
+   message NewResponse { ... }
+   ```
+
+2. **Edit `src/handlers.ts`** - Add business logic:
+   ```typescript
+   export const handlers: CommandHandlers = {
+     newCommand: (args) => {
+       // Your business logic here
+       return { result };
+     },
+   };
+   ```
+
+3. **Build** - `./gradlew assembleDebug`
+
+## Configuration
+
+Bridge code generation is configured in `bridge.yaml`:
+
+```yaml
+proto:
+  file: proto/commands.proto
+
+kotlin:
+  package: com.example.skydioandroidapp.generated
+  out_dir: skydio-android-app/app/src/main/java
+  class_name: CommandBridge
+  proto_package: com.example.skydioandroidapp.proto
+
+typescript:
+  out_dir: skydio-rn-business-logic/src/generated
+  module_name: commandHandler
+  proto_import: ./commands
 ```
 
 ## Development
@@ -59,6 +106,14 @@ adb reverse tcp:8081 tcp:8081
 
 # Run app from Android Studio (or ./gradlew installDebug)
 ```
+
+## Gradle Tasks
+
+| Task | Description |
+|------|-------------|
+| `generateJsProtobufs` | Generate JS protobuf files |
+| `generateBridgeCode` | Generate Kotlin + TypeScript bridge |
+| `cleanGenerated` | Clean all generated files |
 
 ## Tech Stack
 
