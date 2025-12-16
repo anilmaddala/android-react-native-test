@@ -5,7 +5,7 @@ A native Android app with React Native embedded as a headless fragment for busin
 ## Project Structure
 
 ```
-├── skydio-android-app/      # Native Android app (Kotlin + Jetpack Compose)
+├── skydio-android-app/       # Native Android app (Kotlin + Jetpack Compose)
 ├── skydio-rn-business-logic/ # TypeScript/React Native business logic
 └── proto/                    # Protocol Buffer definitions
 ```
@@ -23,20 +23,16 @@ A native Android app with React Native embedded as a headless fragment for busin
 - Node.js v20+ (`node -v`)
 - Java JDK 17+ (`java -version`)
 
-## Setup
+## Build
 
-1. Install JS dependencies:
-   ```bash
-   cd skydio-rn-business-logic
-   npm install
-   ```
+Gradle handles everything automatically, including JS dependency installation:
 
-2. Build the JS bundle:
-   ```bash
-   npm run build
-   ```
+```bash
+cd skydio-android-app
+./gradlew assembleDebug
+```
 
-3. Open `skydio-android-app` in Android Studio and run the app
+Or simply run from Android Studio.
 
 ## Development
 

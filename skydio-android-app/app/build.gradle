@@ -92,6 +92,28 @@ react {
     hermesCommand = "$jsProjectRoot/node_modules/react-native/sdks/hermesc/%OS-BIN%/hermesc"
 }
 
+// Auto-install JS dependencies if needed
+tasks.register("installJsDependencies", Exec) {
+    workingDir jsProjectRoot
+    commandLine "npm", "install"
+
+    // Only run if node_modules doesn't exist or package.json is newer
+    def nodeModules = file("$jsProjectRoot/node_modules")
+    def packageJson = file("$jsProjectRoot/package.json")
+    inputs.file(packageJson)
+    outputs.dir(nodeModules)
+
+    onlyIf { !nodeModules.exists() || packageJson.lastModified() > nodeModules.lastModified() }
+}
+
+// Make React Native tasks depend on JS dependencies
+tasks.configureEach { task ->
+    if (task.name.contains("bundle") || task.name.contains("Bundle") ||
+        task.name.contains("Hermes") || task.name.contains("ReactNative")) {
+        task.dependsOn("installJsDependencies")
+    }
+}
+
 dependencies {
     // React Native
     implementation("com.facebook.react:react-android:$reactNativeVersion")
