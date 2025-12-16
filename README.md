@@ -35,12 +35,9 @@ cd skydio-android-app
 
 This will automatically:
 1. Install npm dependencies (if needed)
-2. Generate JavaScript protobuf files
-3. Generate Kotlin protobuf files
-4. Bundle React Native JavaScript
-5. Build the Android APK
-
-Or simply run from Android Studio.
+2. Generate protobuf files (JS and Kotlin)
+3. Bundle React Native JavaScript
+4. Build the Android APK
 
 ### Clean Build
 
@@ -62,15 +59,6 @@ adb reverse tcp:8081 tcp:8081
 
 # Run app from Android Studio (or ./gradlew installDebug)
 ```
-
-## Gradle Tasks
-
-| Task | Description |
-|------|-------------|
-| `installJsDependencies` | Install npm packages |
-| `generateJsProtobufs` | Generate JS protobuf files |
-| `generateDebugProto` | Generate Kotlin protobuf files |
-| `cleanJsGenerated` | Clean generated JS files |
 
 ## Tech Stack
 
