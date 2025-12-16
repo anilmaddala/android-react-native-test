@@ -2,6 +2,7 @@ package com.example.skydioandroidapp
 
 import android.app.Application
 import android.util.Log
+import dagger.hilt.android.HiltAndroidApp
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
 import com.facebook.react.ReactNativeHost
@@ -28,6 +29,7 @@ import com.facebook.soloader.SoLoader
  * - Call initializeReactNative() before accessing reactHost
  * - HeadlessReactNativeFragment handles this automatically
  */
+@HiltAndroidApp
 class MainApplication : Application(), ReactApplication {
 
     companion object {
