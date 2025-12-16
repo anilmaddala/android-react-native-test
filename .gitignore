@@ -4,6 +4,11 @@
 # Dependencies
 node_modules/
 
-# Yarn
-.yarn/cache
-.yarn/install-state.gz
+# Yarn (not used, but ignore if generated)
+.yarn/
+yarn.lock
+.yarnrc.yml
+
+# Editor/Tool configs (local)
+.vscode/
+.claude/
