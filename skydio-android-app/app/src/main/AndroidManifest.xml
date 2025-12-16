@@ -15,10 +15,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SkydioAndroidApp">
 
-        <!-- Register Expo Modules Package for auto-discovery -->
-        <meta-data
-            android:name="expo.modules.AppExpoModulesPackage"
-            android:value="com.example.skydioandroidapp.AppExpoModulesPackage" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

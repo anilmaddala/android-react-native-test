@@ -23,12 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.AbstractComposeView
 import androidx.compose.ui.unit.dp
 import com.example.skydioandroidapp.ui.theme.SkydioAndroidAppTheme
-import com.facebook.react.ReactPackage
-import com.facebook.react.bridge.NativeModule
-import com.facebook.react.bridge.ReactApplicationContext
-import com.facebook.react.uimanager.SimpleViewManager
-import com.facebook.react.uimanager.ThemedReactContext
-import com.facebook.react.uimanager.ViewManager
 
 @Composable
 fun CounterScreen(modifier: Modifier = Modifier) {
@@ -86,20 +80,4 @@ class ComposeCounterView @JvmOverloads constructor(
             CounterScreen()
         }
     }
-}
-
-class ComposeCounterViewManager : SimpleViewManager<ComposeCounterView>() {
-
-    override fun getName(): String = "ComposeCounterView"
-
-    override fun createViewInstance(reactContext: ThemedReactContext): ComposeCounterView {
-        return ComposeCounterView(reactContext)
-    }
-}
-
-class ComposeCounterPackage : ReactPackage {
-    override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> = emptyList()
-
-    override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> =
-        listOf(ComposeCounterViewManager())
 }
