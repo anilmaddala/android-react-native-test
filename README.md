@@ -7,7 +7,8 @@ A native Android app with React Native embedded as a headless fragment for busin
 ```
 ├── skydio-android-app/       # Native Android app (Kotlin + Jetpack Compose)
 ├── skydio-rn-business-logic/ # TypeScript/React Native business logic
-└── proto/                    # Protocol Buffer definitions
+├── proto/                    # Protocol Buffer definitions
+└── node_modules/             # Shared dependencies (npm workspaces)
 ```
 
 ## Architecture
@@ -25,14 +26,27 @@ A native Android app with React Native embedded as a headless fragment for busin
 
 ## Build
 
-Gradle handles everything automatically, including JS dependency installation:
+Gradle handles everything automatically:
 
 ```bash
 cd skydio-android-app
 ./gradlew assembleDebug
 ```
 
+This will automatically:
+1. Install npm dependencies (if needed)
+2. Generate JavaScript protobuf files
+3. Generate Kotlin protobuf files
+4. Bundle React Native JavaScript
+5. Build the Android APK
+
 Or simply run from Android Studio.
+
+### Clean Build
+
+```bash
+./gradlew clean assembleDebug
+```
 
 ## Development
 
@@ -46,8 +60,17 @@ npm start
 # Terminal 2: Reverse port for device
 adb reverse tcp:8081 tcp:8081
 
-# Run app from Android Studio
+# Run app from Android Studio (or ./gradlew installDebug)
 ```
+
+## Gradle Tasks
+
+| Task | Description |
+|------|-------------|
+| `installJsDependencies` | Install npm packages |
+| `generateJsProtobufs` | Generate JS protobuf files |
+| `generateDebugProto` | Generate Kotlin protobuf files |
+| `cleanJsGenerated` | Clean generated JS files |
 
 ## Tech Stack
 

@@ -11,6 +11,8 @@ plugins {
 // React Native version
 def reactNativeVersion = "0.81.5"
 def jsProjectRoot = file("$rootDir/../skydio-rn-business-logic")
+def workspaceRoot = file("$rootDir/..")
+def nodeModulesRoot = file("$workspaceRoot/node_modules")
 
 android {
     namespace 'com.example.skydioandroidapp'
@@ -82,35 +84,81 @@ protobuf {
     }
 }
 
-// React Native configuration
+// React Native configuration (node_modules hoisted to workspace root)
 react {
     root = jsProjectRoot
-    reactNativeDir = file("$jsProjectRoot/node_modules/react-native")
-    codegenDir = file("$jsProjectRoot/node_modules/@react-native/codegen")
-    cliFile = file("$jsProjectRoot/node_modules/react-native/cli.js")
+    reactNativeDir = file("$nodeModulesRoot/react-native")
+    codegenDir = file("$nodeModulesRoot/@react-native/codegen")
+    cliFile = file("$nodeModulesRoot/react-native/cli.js")
     entryFile = file("$jsProjectRoot/index.js")
-    hermesCommand = "$jsProjectRoot/node_modules/react-native/sdks/hermesc/%OS-BIN%/hermesc"
+    hermesCommand = "$nodeModulesRoot/react-native/sdks/hermesc/%OS-BIN%/hermesc"
 }
 
-// Auto-install JS dependencies if needed
+// =============================================================================
+// JavaScript Build Tasks
+// =============================================================================
+
+def protoDir = file("$rootDir/../proto")
+def jsGeneratedDir = file("$jsProjectRoot/src/generated")
+
+// Install JS dependencies (npm install from workspace root)
 tasks.register("installJsDependencies", Exec) {
-    workingDir jsProjectRoot
-    commandLine "npm", "install"
+    description = "Install JavaScript dependencies via npm"
+    group = "react native"
+    workingDir workspaceRoot
+    commandLine "npm", "install", "--prefer-offline"
 
-    // Only run if node_modules doesn't exist or package.json is newer
-    def nodeModules = file("$jsProjectRoot/node_modules")
-    def packageJson = file("$jsProjectRoot/package.json")
+    def packageJson = file("$workspaceRoot/package.json")
+    def packageLock = file("$workspaceRoot/package-lock.json")
+
     inputs.file(packageJson)
-    outputs.dir(nodeModules)
+    inputs.file(file("$jsProjectRoot/package.json"))
+    inputs.file(packageLock).optional()
+    outputs.dir(nodeModulesRoot)
 
-    onlyIf { !nodeModules.exists() || packageJson.lastModified() > nodeModules.lastModified() }
+    onlyIf { !nodeModulesRoot.exists() || packageJson.lastModified() > nodeModulesRoot.lastModified() }
 }
 
-// Make React Native tasks depend on JS dependencies
+// Generate JavaScript protobuf files
+tasks.register("generateJsProtobufs", Exec) {
+    description = "Generate JavaScript protobuf files from .proto definitions"
+    group = "react native"
+    dependsOn("installJsDependencies")
+    workingDir jsProjectRoot
+
+    def protoFile = file("$protoDir/commands.proto")
+    def outputJs = file("$jsGeneratedDir/commands.js")
+    def outputDts = file("$jsGeneratedDir/commands.d.ts")
+
+    inputs.file(protoFile)
+    outputs.file(outputJs)
+    outputs.file(outputDts)
+
+    doFirst {
+        jsGeneratedDir.mkdirs()
+    }
+
+    commandLine "npm", "run", "proto:generate"
+}
+
+// Clean generated JS files
+tasks.register("cleanJsGenerated", Delete) {
+    description = "Clean generated JavaScript protobuf files"
+    group = "react native"
+    delete jsGeneratedDir
+}
+
+// Hook JS clean into main clean task
+tasks.named("clean") {
+    dependsOn("cleanJsGenerated")
+}
+
+// Make React Native tasks depend on JS protobuf generation
 tasks.configureEach { task ->
     if (task.name.contains("bundle") || task.name.contains("Bundle") ||
-        task.name.contains("Hermes") || task.name.contains("ReactNative")) {
-        task.dependsOn("installJsDependencies")
+        task.name.contains("Hermes") || task.name.contains("ReactNative") ||
+        task.name.contains("generateCodegen")) {
+        task.dependsOn("generateJsProtobufs")
     }
 }
 

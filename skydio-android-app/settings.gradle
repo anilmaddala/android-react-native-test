@@ -10,8 +10,27 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
-    // Include React Native Gradle Plugin from npm package
-    includeBuild("../skydio-rn-business-logic/node_modules/@react-native/gradle-plugin")
+
+    // Bootstrap: Install JS dependencies if node_modules doesn't exist
+    // Note: npm workspaces hoists dependencies to root node_modules
+    def workspaceRoot = file("..")
+    def nodeModules = file("${workspaceRoot}/node_modules")
+    if (!nodeModules.exists()) {
+        println("Installing JS dependencies (first-time setup)...")
+        def process = new ProcessBuilder("npm", "install")
+            .directory(workspaceRoot)
+            .redirectErrorStream(true)
+            .start()
+        process.inputStream.eachLine { println(it) }
+        def exitCode = process.waitFor()
+        if (exitCode != 0) {
+            throw new GradleException("npm install failed with exit code ${exitCode}")
+        }
+        println("JS dependencies installed successfully")
+    }
+
+    // Include React Native Gradle Plugin from npm package (hoisted to root)
+    includeBuild("../node_modules/@react-native/gradle-plugin")
 }
 
 plugins {
@@ -45,9 +64,9 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven { url 'https://www.jitpack.io' }
-        // React Native Maven repository (from npm package)
+        // React Native Maven repository (from npm package, hoisted to root)
         maven {
-            url("$rootDir/../skydio-rn-business-logic/node_modules/react-native/android")
+            url("$rootDir/../node_modules/react-native/android")
         }
     }
 }
