@@ -106,8 +106,10 @@ class MainApplication : Application(), ReactApplication {
         // Step 3: Create ReactNativeHost (configuration object)
         _reactNativeHost = object : DefaultReactNativeHost(this) {
             override fun getPackages(): List<ReactPackage> {
-                // BARE MINIMUM: Only core React Native modules
-                return listOf(MainReactPackage())
+                return listOf(
+                    MainReactPackage(),
+                    CommandBridgePackage()
+                )
             }
 
             override fun getJSMainModuleName(): String = "index"
