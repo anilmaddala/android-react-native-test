@@ -26,7 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import com.example.skydioandroidapp.ui.theme.SkydioAndroidAppTheme
-import com.example.skydioandroidapp.generated.CommandBridge
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
@@ -47,7 +46,6 @@ class MainActivity : FragmentActivity() {
     }
 
     private var headlessFragment: HeadlessReactNativeFragment? = null
-    private var commandBridge: CommandBridge? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,31 +69,25 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun sendCommand(command: String) {
-        val bridge = getCommandBridge()
-        if (bridge == null) {
-            Log.e(TAG, "CommandBridge not available")
-            return
-        }
-
         Log.d(TAG, "Sending command: $command")
 
-        // Use generated methods instead of sendCommand
+        // Use generated methods with response callbacks
         when (command) {
             "increment" -> {
-                bridge.increment { result, error ->
-                    if (error != null) {
-                        Log.e(TAG, "Increment error: $error")
+                com.example.skydioandroidapp.generated.CommandBridge.increment { response ->
+                    if (response.hasError()) {
+                        Log.e(TAG, "Increment error: ${response.error.message}")
                     } else {
-                        Log.d(TAG, "Increment successful")
+                        Log.d(TAG, "Increment result: ${response.counter.value}")
                     }
                 }
             }
             "decrement" -> {
-                bridge.decrement { result, error ->
-                    if (error != null) {
-                        Log.e(TAG, "Decrement error: $error")
+                com.example.skydioandroidapp.generated.CommandBridge.decrement { response ->
+                    if (response.hasError()) {
+                        Log.e(TAG, "Decrement error: ${response.error.message}")
                     } else {
-                        Log.d(TAG, "Decrement successful")
+                        Log.d(TAG, "Decrement result: ${response.counter.value}")
                     }
                 }
             }
@@ -103,37 +95,6 @@ class MainActivity : FragmentActivity() {
                 Log.w(TAG, "Unknown command: $command")
             }
         }
-    }
-
-    private fun getCommandBridge(): CommandBridge? {
-        if (commandBridge != null) {
-            Log.d(TAG, "Returning cached CommandBridge")
-            return commandBridge
-        }
-
-        Log.d(TAG, "Attempting to get CommandBridge...")
-
-        val app = application as? MainApplication
-        if (app == null) {
-            Log.e(TAG, "Application is not MainApplication")
-            return null
-        }
-
-        if (!app.isReactNativeInitialized()) {
-            Log.e(TAG, "React Native not initialized")
-            return null
-        }
-
-        Log.d(TAG, "React Native is initialized, getting CommandBridge instance...")
-
-        // Use singleton instance instead of getNativeModule()
-        commandBridge = CommandBridge.getInstance()
-        if (commandBridge == null) {
-            Log.e(TAG, "CommandBridge singleton not available yet")
-        } else {
-            Log.d(TAG, "CommandBridge acquired from singleton successfully")
-        }
-        return commandBridge
     }
 
     private fun initializeHeadlessFragment() {

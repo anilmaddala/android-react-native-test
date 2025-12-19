@@ -6,9 +6,12 @@
   "scripts": {
     "start": "react-native start",
     "android": "react-native run-android",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "proto:generate": "pbjs -t static-module -w es6 -o src/generated/commands.js ../proto/commands.proto && pbts -o src/generated/commands.d.ts src/generated/commands.js"
   },
   "dependencies": {
+    "buffer": "^6.0.3",
+    "protobufjs": "^7.5.4",
     "react": "19.1.0",
     "react-native": "0.81.5",
     "zustand": "^5.0.2"
