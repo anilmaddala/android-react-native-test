@@ -5,19 +5,16 @@ import android.util.Log
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -25,10 +22,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
-import com.example.skydioandroidapp.generated.CommandBridge
 import com.example.skydioandroidapp.ui.theme.SkydioAndroidAppTheme
 import dagger.hilt.android.AndroidEntryPoint
 
+/**
+ * BARE MINIMUM React Native Test Activity
+ *
+ * This activity simply:
+ * 1. Creates a HeadlessReactNativeFragment
+ * 2. Shows "Loading..." until React Native is ready
+ * 3. Shows "React Native Ready!" when initialized
+ *
+ * Check logcat for "[BARE MINIMUM TEST]" messages to verify JS is running.
+ */
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
 
@@ -41,7 +47,7 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Log.d(TAG, "onCreate")
+        Log.d(TAG, "onCreate - Initializing bare minimum React Native test")
 
         initializeHeadlessFragment()
 
@@ -51,9 +57,8 @@ class MainActivity : FragmentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainScreen(
-                        isReactNativeReady = { headlessFragment?.isReady() == true },
-                        onRunOnUiThread = { runOnUiThread(it) }
+                    BareMinimumTestScreen(
+                        isReactNativeReady = { headlessFragment?.isReady() == true }
                     )
                 }
             }
@@ -78,12 +83,8 @@ class MainActivity : FragmentActivity() {
 }
 
 @Composable
-fun MainScreen(
-    isReactNativeReady: () -> Boolean,
-    onRunOnUiThread: (() -> Unit) -> Unit
-) {
+fun BareMinimumTestScreen(isReactNativeReady: () -> Boolean) {
     var isReady by remember { mutableStateOf(false) }
-    var counter by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
         while (!isReady) {
@@ -100,50 +101,28 @@ fun MainScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = if (isReady) "TypeScript Ready" else "Loading...",
-            style = MaterialTheme.typography.titleMedium,
-            color = if (isReady) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+            text = "BARE MINIMUM TEST",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.primary
         )
 
         Spacer(modifier = Modifier.height(32.dp))
 
         Text(
-            text = "$counter",
-            style = MaterialTheme.typography.displayLarge
+            text = if (isReady) "✓ React Native Ready!" else "Loading...",
+            style = MaterialTheme.typography.headlineMedium,
+            color = if (isReady) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Button(
-                onClick = {
-                    CommandBridge.decrement { response ->
-                        onRunOnUiThread {
-                            if (!response.hasError()) {
-                                counter = response.counter.value
-                            }
-                        }
-                    }
-                },
-                enabled = isReady
-            ) {
-                Text("-", style = MaterialTheme.typography.headlineMedium)
-            }
-
-            Button(
-                onClick = {
-                    CommandBridge.increment { response ->
-                        onRunOnUiThread {
-                            if (!response.hasError()) {
-                                counter = response.counter.value
-                            }
-                        }
-                    }
-                },
-                enabled = isReady
-            ) {
-                Text("+", style = MaterialTheme.typography.headlineMedium)
-            }
-        }
+        Text(
+            text = if (isReady)
+                "Check logcat for '[BARE MINIMUM TEST]' messages.\nIf you see no PlatformConstants error, it works!"
+            else
+                "Initializing React Native...",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }

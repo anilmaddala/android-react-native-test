@@ -1,20 +1,18 @@
 /**
- * React Native Entry Point (Headless Mode)
+ * BARE MINIMUM React Native Test
  *
- * This is the headless entry point for React Native.
- * It initializes the business logic runtime without rendering any UI.
+ * This is the absolute minimal setup to test if React Native
+ * New Architecture (Bridgeless) is working correctly.
+ *
+ * If this works, PlatformConstants and all core TurboModules are loading.
  */
 
 import { AppRegistry } from 'react-native';
-import { commandHandler } from './src/generated/commandHandler';
-import { handlers } from './src/handlers';
 
-console.log('[Index] React Native entry point loaded');
+console.log('[BARE MINIMUM TEST] React Native loaded successfully!');
+console.log('[BARE MINIMUM TEST] If you see this, JS runtime is working');
 
-// Initialize the command handler with business logic handlers
-commandHandler.initialize(handlers);
-
-// Register a minimal headless component (required by React Native)
+// Minimal headless component (required by React Native)
 AppRegistry.registerComponent('main', () => () => null);
 
-console.log('[Index] Headless runtime ready');
+console.log('[BARE MINIMUM TEST] Runtime ready - no errors means success!');
