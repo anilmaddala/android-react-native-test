@@ -3,5 +3,12 @@
   "private": true,
   "workspaces": [
     "skydio-rn-business-logic"
-  ]
+  ],
+  "scripts": {
+    "generate": "node scripts/generate-bridge.js"
+  },
+  "devDependencies": {
+    "protobufjs": "^7.2.5",
+    "yaml": "^2.3.4"
+  }
 }

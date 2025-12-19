@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import com.example.skydioandroidapp.ui.theme.SkydioAndroidAppTheme
+import com.example.skydioandroidapp.generated.CommandBridge
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
@@ -77,11 +78,29 @@ class MainActivity : FragmentActivity() {
         }
 
         Log.d(TAG, "Sending command: $command")
-        bridge.sendCommand(command) { result, error ->
-            if (error != null) {
-                Log.e(TAG, "Command error: $error")
-            } else {
-                Log.d(TAG, "Command result: $result")
+
+        // Use generated methods instead of sendCommand
+        when (command) {
+            "increment" -> {
+                bridge.increment { result, error ->
+                    if (error != null) {
+                        Log.e(TAG, "Increment error: $error")
+                    } else {
+                        Log.d(TAG, "Increment successful")
+                    }
+                }
+            }
+            "decrement" -> {
+                bridge.decrement { result, error ->
+                    if (error != null) {
+                        Log.e(TAG, "Decrement error: $error")
+                    } else {
+                        Log.d(TAG, "Decrement successful")
+                    }
+                }
+            }
+            else -> {
+                Log.w(TAG, "Unknown command: $command")
             }
         }
     }

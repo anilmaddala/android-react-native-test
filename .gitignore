@@ -12,3 +12,22 @@ yarn.lock
 # Editor/Tool configs (local)
 .vscode/
 .claude/
+
+# Generated Code (DO NOT COMMIT)
+# These files are auto-generated from proto definitions
+skydio-android-app/app/src/main/java/com/example/skydioandroidapp/generated/
+skydio-rn-business-logic/src/generated/
+
+# Android Build
+skydio-android-app/app/build/
+skydio-android-app/build/
+skydio-android-app/.gradle/
+skydio-android-app/local.properties
+*.apk
+*.aab
+
+# React Native
+skydio-rn-business-logic/metro.cache/
+
+# Bundled JavaScript (can be regenerated)
+skydio-android-app/app/src/main/assets/index.android.bundle
