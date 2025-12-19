@@ -10,11 +10,6 @@ import com.facebook.react.bridge.ReactContext
 /**
  * A headless Fragment that manages React Native lifecycle without rendering any UI.
  *
- * Architecture:
- * - Business logic lives in TypeScript using Zustand state management
- * - Kotlin sends commands via CommandBridge native module
- * - TypeScript processes commands and responds back
- *
  * Lazy Initialization:
  * - This fragment triggers React Native initialization on-demand
  * - Application.onCreate() has NO React Native code
@@ -22,8 +17,7 @@ import com.facebook.react.bridge.ReactContext
  *
  * Usage:
  * 1. Add this fragment to your activity
- * 2. Wait for isReady() to return true
- * 3. Use CommandBridge.sendCommand() to invoke TypeScript business logic
+ * 2. Wait for isReady() to return true before interacting with React Native
  */
 class HeadlessReactNativeFragment : Fragment() {
 
