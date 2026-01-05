@@ -2,27 +2,41 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
+    alias(libs.plugins.protobuf)
+    alias(libs.plugins.react.native)
 }
 
-apply plugin: "com.facebook.react"
+// React Native version
+def reactNativeVersion = "0.81.5"
+def jsProjectRoot = file("$rootDir/../skydio-rn-business-logic")
+def workspaceRoot = file("$rootDir/..")
+def nodeModulesRoot = file("$workspaceRoot/node_modules")
 
 android {
     namespace 'com.example.skydioandroidapp'
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk 36
 
     defaultConfig {
         applicationId "com.example.skydioandroidapp"
         minSdk 24
-        targetSdk 36
+        targetSdk 35
         versionCode 1
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        // React Native build config - enable new architecture
+        buildConfigField "boolean", "IS_NEW_ARCHITECTURE_ENABLED", "true"
+        buildConfigField "boolean", "IS_HERMES_ENABLED", "true"
+        buildConfigField "boolean", "IS_EDGE_TO_EDGE_ENABLED", "false"
     }
 
     buildTypes {
+        debug {
+            // Enable developer support in debug builds
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
@@ -37,22 +51,191 @@ android {
     }
     buildFeatures {
         compose true
+        buildConfig true
+    }
+
+    sourceSets {
+        main {
+            proto {
+                srcDir '../../proto'
+            }
+            // Add assets directory for JS bundle
+            assets.srcDirs = ['src/main/assets']
+        }
+    }
+}
+
+// Protobuf configuration
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:${libs.versions.protobuf.get()}"
+    }
+    generateProtoTasks {
+        all().configureEach { task ->
+            task.builtins {
+                create("java") {
+                    option("lite")
+                }
+                create("kotlin") {
+                    option("lite")
+                }
+            }
+        }
+    }
+}
+
+// React Native configuration (node_modules hoisted to workspace root)
+react {
+    root = jsProjectRoot
+    reactNativeDir = file("$nodeModulesRoot/react-native")
+    codegenDir = file("$nodeModulesRoot/@react-native/codegen")
+    cliFile = file("$nodeModulesRoot/react-native/cli.js")
+    entryFile = file("$jsProjectRoot/index.js")
+    hermesCommand = "$nodeModulesRoot/react-native/sdks/hermesc/%OS-BIN%/hermesc"
+}
+
+// =============================================================================
+// JavaScript Build Tasks
+// =============================================================================
+
+def protoDir = file("$rootDir/../proto")
+def jsGeneratedDir = file("$jsProjectRoot/src/generated")
+
+// Install JS dependencies (npm install from workspace root)
+tasks.register("installJsDependencies", Exec) {
+    description = "Install JavaScript dependencies via npm"
+    group = "react native"
+    workingDir workspaceRoot
+    commandLine "npm", "install", "--prefer-offline"
+
+    def packageJson = file("$workspaceRoot/package.json")
+    def packageLock = file("$workspaceRoot/package-lock.json")
+
+    inputs.file(packageJson)
+    inputs.file(file("$jsProjectRoot/package.json"))
+    inputs.file(packageLock).optional()
+    outputs.dir(nodeModulesRoot)
+
+    onlyIf { !nodeModulesRoot.exists() || packageJson.lastModified() > nodeModulesRoot.lastModified() }
+}
+
+// Generate JavaScript protobuf files
+tasks.register("generateJsProtobufs", Exec) {
+    description = "Generate JavaScript protobuf files from .proto definitions"
+    group = "react native"
+    dependsOn("installJsDependencies")
+    workingDir jsProjectRoot
+
+    def protoFile = file("$protoDir/commands.proto")
+    def outputJs = file("$jsGeneratedDir/commands.js")
+    def outputDts = file("$jsGeneratedDir/commands.d.ts")
+
+    inputs.file(protoFile)
+    outputs.file(outputJs)
+    outputs.file(outputDts)
+
+    doFirst {
+        jsGeneratedDir.mkdirs()
+    }
+
+    commandLine "npm", "run", "proto:generate"
+}
+
+// Generate bridge code (Kotlin + TypeScript) from proto service definitions
+def bridgeConfig = file("$workspaceRoot/bridge.yaml")
+def generatorScript = file("$workspaceRoot/scripts/generate-bridge.js")
+def kotlinGeneratedDir = file("$projectDir/src/main/java/com/example/skydioandroidapp/generated")
+
+tasks.register("generateBridgeCode", Exec) {
+    description = "Generate Kotlin and TypeScript bridge code from proto service definitions"
+    group = "react native"
+    dependsOn("generateJsProtobufs")
+    workingDir workspaceRoot
+
+    def protoFile = file("$protoDir/commands.proto")
+    def kotlinOutput = file("$kotlinGeneratedDir/CommandBridge.kt")
+    def tsOutput = file("$jsGeneratedDir/commandHandler.ts")
+
+    inputs.file(protoFile)
+    inputs.file(bridgeConfig)
+    inputs.file(generatorScript)
+    outputs.file(kotlinOutput)
+    outputs.file(tsOutput)
+
+    doFirst {
+        kotlinGeneratedDir.mkdirs()
+        jsGeneratedDir.mkdirs()
+    }
+
+    commandLine "node", generatorScript, "--config", bridgeConfig
+}
+
+// Clean all generated files (JS + Kotlin)
+tasks.register("cleanGenerated", Delete) {
+    description = "Clean all generated files"
+    group = "react native"
+    delete jsGeneratedDir
+    delete kotlinGeneratedDir
+}
+
+// Clean generated JS files (legacy task name)
+tasks.register("cleanJsGenerated", Delete) {
+    description = "Clean generated JavaScript protobuf files"
+    group = "react native"
+    delete jsGeneratedDir
+}
+
+// Hook clean into main clean task
+tasks.named("clean") {
+    dependsOn("cleanGenerated")
+}
+
+// Make build tasks depend on code generation
+tasks.configureEach { task ->
+    // React Native bundling depends on JS protobuf generation
+    if (task.name.contains("bundle") || task.name.contains("Bundle") ||
+        task.name.contains("Hermes") || task.name.contains("ReactNative") ||
+        task.name.contains("generateCodegen")) {
+        task.dependsOn("generateBridgeCode")
+    }
+    // Kotlin compilation depends on bridge code generation
+    if (task.name == "compileDebugKotlin" || task.name == "compileReleaseKotlin") {
+        task.dependsOn("generateBridgeCode")
     }
 }
 
 dependencies {
-    implementation("com.facebook.react:react-android")
-    implementation("com.facebook.react:hermes-android")
-    implementation project(':expo')
+    // React Native
+    implementation("com.facebook.react:react-android:$reactNativeVersion")
+    implementation("com.facebook.react:hermes-android:$reactNativeVersion")
+
+    // Coroutines for async operations
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
+
+    // Protobuf (lite runtime)
+    implementation libs.protobuf.javalite
+    implementation libs.protobuf.kotlin.lite
+
+    // Hilt
+    implementation libs.hilt.android
+    ksp libs.hilt.compiler
+
+    // AndroidX
     implementation libs.androidx.core.ktx
     implementation libs.androidx.lifecycle.runtime.ktx
     implementation libs.androidx.activity.compose
+    implementation "androidx.fragment:fragment-ktx:1.8.5"
+
+    // Compose
     implementation platform(libs.androidx.compose.bom)
     implementation libs.androidx.compose.ui
     implementation libs.androidx.compose.ui.graphics
     implementation libs.androidx.compose.ui.tooling.preview
     implementation libs.androidx.compose.material3
     implementation libs.androidx.compose.material3.adaptive.navigation.suite
+
+    // Testing
     testImplementation libs.junit
     androidTestImplementation libs.androidx.junit
     androidTestImplementation libs.androidx.espresso.core
@@ -60,20 +243,4 @@ dependencies {
     androidTestImplementation libs.androidx.compose.ui.test.junit4
     debugImplementation libs.androidx.compose.ui.tooling
     debugImplementation libs.androidx.compose.ui.test.manifest
-}
-
-def projectRoot = new File(rootDir.getAbsoluteFile(), '../skydio-expo-app').getAbsolutePath()
-react {
-    entryFile = file(["node", "-e", "require('expo/scripts/resolveAppEntry')", projectRoot, "android", "absolute"].execute(null, rootDir).text.trim())
-    reactNativeDir = new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsoluteFile()
-    hermesCommand = new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsolutePath() + "/sdks/hermesc/%OS-BIN%/hermesc"
-    codegenDir = new File(["node", "--print", "require.resolve('@react-native/codegen/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile().getAbsoluteFile()
-    enableBundleCompression = false
-
-    // Use Expo CLI to bundle the app, this ensures the Metro config works correctly with Expo projects.
-    cliFile = new File(["node", "--print", "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })"].execute(null, rootDir).text.trim())
-    bundleCommand = "export:embed"
-
-    /* Autolinking */
-    autolinkLibrariesWithApp()
 }

@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package commands;
+
+option java_package = "com.example.skydioandroidapp.proto";
+option java_multiple_files = true;
+
+// Service definition - used by code generator
+service CounterService {
+  rpc Increment(IncrementCommand) returns (CounterResponse);
+  rpc Decrement(DecrementCommand) returns (CounterResponse);
+}
+
+// Command Envelope - wraps all commands
+message Command {
+  string callback_id = 1;
+  oneof command {
+    IncrementCommand increment = 10;
+    DecrementCommand decrement = 11;
+  }
+}
+
+// Response Envelope - wraps all responses
+message Response {
+  string callback_id = 1;
+  oneof result {
+    ErrorResponse error = 2;
+    CounterResponse counter = 10;
+  }
+}
+
+// Counter Commands
+message IncrementCommand {}
+message DecrementCommand {}
+
+// Response Types
+message ErrorResponse {
+  string message = 1;
+}
+
+message CounterResponse {
+  int32 value = 1;
+}

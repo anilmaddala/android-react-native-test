@@ -1,169 +1,149 @@
 package com.example.skydioandroidapp
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import android.util.Log
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBox
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.tooling.preview.PreviewScreenSizes
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.unit.dp
+import androidx.fragment.app.FragmentActivity
+import com.example.skydioandroidapp.generated.CommandBridge
 import com.example.skydioandroidapp.ui.theme.SkydioAndroidAppTheme
-import com.facebook.react.modules.core.DefaultHardwareBackBtnHandler
+import dagger.hilt.android.AndroidEntryPoint
 
-class MainActivity : ComponentActivity(), DefaultHardwareBackBtnHandler {
-    private val reactHost by lazy {
-        (application as MainApplication).reactHost
+@AndroidEntryPoint
+class MainActivity : FragmentActivity() {
+
+    companion object {
+        private const val TAG = "MainActivity"
+        private const val FRAGMENT_TAG = "headless_rn_fragment"
     }
+
+    private var headlessFragment: HeadlessReactNativeFragment? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        Log.d(TAG, "onCreate")
+
+        initializeHeadlessFragment()
+
         setContent {
             SkydioAndroidAppTheme {
-                SkydioAndroidAppApp()
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    MainScreen(
+                        isReactNativeReady = { headlessFragment?.isReady() == true },
+                        onRunOnUiThread = { runOnUiThread(it) }
+                    )
+                }
             }
         }
     }
 
-    override fun onPause() {
-        super.onPause()
-        reactHost.onHostPause(this)
-    }
+    private fun initializeHeadlessFragment() {
+        var fragment = supportFragmentManager.findFragmentByTag(FRAGMENT_TAG) as? HeadlessReactNativeFragment
 
-    override fun onResume() {
-        super.onResume()
-        reactHost.onHostResume(this, this)
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        reactHost.onHostDestroy(this)
-    }
-
-    override fun onUserLeaveHint() {
-        super.onUserLeaveHint()
-        reactHost.onHostLeaveHint(this)
-    }
-
-    override fun onBackPressed() {
-        val handled = reactHost.onBackPressed()
-        if (!handled) {
-            super.onBackPressed()
+        if (fragment == null) {
+            Log.d(TAG, "Creating new HeadlessReactNativeFragment")
+            fragment = HeadlessReactNativeFragment.newInstance()
+            supportFragmentManager.beginTransaction()
+                .add(fragment, FRAGMENT_TAG)
+                .commit()
+        } else {
+            Log.d(TAG, "Reusing existing HeadlessReactNativeFragment")
         }
-    }
 
-    override fun invokeDefaultOnBackPressed() {
-        super.onBackPressed()
+        headlessFragment = fragment
     }
 }
 
-@PreviewScreenSizes
 @Composable
-fun SkydioAndroidAppApp() {
-    var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
-
-    NavigationSuiteScaffold(
-        navigationSuiteItems = {
-            AppDestinations.entries.forEach {
-                item(
-                    icon = {
-                        Icon(
-                            it.icon,
-                            contentDescription = it.label
-                        )
-                    },
-                    label = { Text(it.label) },
-                    selected = it == currentDestination,
-                    onClick = { currentDestination = it }
-                )
-            }
-        }
-    ) {
-        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-            when (currentDestination) {
-                AppDestinations.HOME -> Greeting(
-                    name = "Android",
-                    modifier = Modifier.padding(innerPadding)
-                )
-                AppDestinations.FAVORITES -> ReactNativeView(
-                    modifier = Modifier.padding(innerPadding)
-                )
-                AppDestinations.PROFILE -> Text(
-                    text = "Profile Screen",
-                    modifier = Modifier.padding(innerPadding)
-                )
-            }
-        }
-    }
-}
-
-enum class AppDestinations(
-    val label: String,
-    val icon: ImageVector,
+fun MainScreen(
+    isReactNativeReady: () -> Boolean,
+    onRunOnUiThread: (() -> Unit) -> Unit
 ) {
-    HOME("Home", Icons.Default.Home),
-    FAVORITES("Favorites", Icons.Default.Favorite),
-    PROFILE("Profile", Icons.Default.AccountBox),
-}
+    var isReady by remember { mutableStateOf(false) }
+    var counter by remember { mutableIntStateOf(0) }
 
-@Composable
-fun ReactNativeView(modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val application = context.applicationContext as MainApplication
-    val reactHost = remember { application.reactHost }
-
-    val reactSurface = remember(reactHost, context) {
-        reactHost.createSurface(context, "main", null)
-    }
-
-    DisposableEffect(reactSurface) {
-        reactSurface.start()
-        onDispose {
-            reactSurface.stop()
+    LaunchedEffect(Unit) {
+        while (!isReady) {
+            isReady = isReactNativeReady()
+            if (!isReady) kotlinx.coroutines.delay(100)
         }
     }
 
-    AndroidView(
-        modifier = modifier.fillMaxSize(),
-        factory = {
-            reactSurface.view
-                ?: throw IllegalStateException("React surface view is not available")
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = if (isReady) "TypeScript Ready" else "Loading...",
+            style = MaterialTheme.typography.titleMedium,
+            color = if (isReady) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Text(
+            text = "$counter",
+            style = MaterialTheme.typography.displayLarge
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Button(
+                onClick = {
+                    CommandBridge.decrement { response ->
+                        onRunOnUiThread {
+                            if (!response.hasError()) {
+                                counter = response.counter.value
+                            }
+                        }
+                    }
+                },
+                enabled = isReady
+            ) {
+                Text("-", style = MaterialTheme.typography.headlineMedium)
+            }
+
+            Button(
+                onClick = {
+                    CommandBridge.increment { response ->
+                        onRunOnUiThread {
+                            if (!response.hasError()) {
+                                counter = response.counter.value
+                            }
+                        }
+                    }
+                },
+                enabled = isReady
+            ) {
+                Text("+", style = MaterialTheme.typography.headlineMedium)
+            }
         }
-    )
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    SkydioAndroidAppTheme {
-        Greeting("Android")
     }
 }

@@ -1,22 +1,4 @@
-// Configures the React Native Gradle Settings plugin used for autolinking
 pluginManagement {
-    def reactNativeGradlePlugin = new File(
-        providers.exec {
-            workingDir(rootDir)
-            commandLine("node", "--print", "require.resolve('@react-native/gradle-plugin/package.json', { paths: [require.resolve('react-native/package.json')] })")
-        }.standardOutput.asText.get().trim()
-    ).getParentFile().absolutePath
-    includeBuild(reactNativeGradlePlugin)
-
-    def expoPluginsPath = new File(
-        providers.exec {
-            workingDir(rootDir)
-            commandLine("node", "--print", "require.resolve('expo-modules-autolinking/package.json', { paths: [require.resolve('expo/package.json')] })")
-        }.standardOutput.asText.get().trim(),
-        "../android/expo-gradle-plugin"
-    ).absolutePath
-    includeBuild(expoPluginsPath)
-
     repositories {
         google {
             content {
@@ -28,11 +10,52 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
+
+    // Bootstrap: Install JS dependencies if node_modules doesn't exist
+    // Note: npm workspaces hoists dependencies to root node_modules
+    def workspaceRoot = file("..")
+    def nodeModules = file("${workspaceRoot}/node_modules")
+    if (!nodeModules.exists()) {
+        println("Installing JS dependencies (first-time setup)...")
+        def process = new ProcessBuilder("npm", "install")
+            .directory(workspaceRoot)
+            .redirectErrorStream(true)
+            .start()
+        process.inputStream.eachLine { println(it) }
+        def exitCode = process.waitFor()
+        if (exitCode != 0) {
+            throw new GradleException("npm install failed with exit code ${exitCode}")
+        }
+        println("JS dependencies installed successfully")
+    }
+
+    // Include React Native Gradle Plugin from npm package (hoisted to root)
+    includeBuild("../node_modules/@react-native/gradle-plugin")
 }
 
 plugins {
+    // Apply React Native settings plugin for autolinking
     id("com.facebook.react.settings")
-    id("expo-autolinking-settings")
+}
+
+// Path to the JS project (relative to this settings.gradle)
+def jsProjectRoot = file("../skydio-rn-business-logic")
+
+// Configure autolinking to run from the JS project directory
+reactSettings {
+    autolinkLibrariesFromCommand(
+        // Use the default command: npx @react-native-community/cli config
+        ["npx", "@react-native-community/cli", "config"],
+        // Run from the JS project directory
+        jsProjectRoot,
+        // Lock files to watch for changes (relative to JS project)
+        files(
+            "${jsProjectRoot}/yarn.lock",
+            "${jsProjectRoot}/package-lock.json",
+            "${jsProjectRoot}/package.json",
+            "${jsProjectRoot}/react-native.config.js"
+        )
+    )
 }
 
 dependencyResolutionManagement {
@@ -40,21 +63,13 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven { url 'https://www.jitpack.io' }
+        // React Native Maven repository (from npm package, hoisted to root)
+        maven {
+            url("$rootDir/../node_modules/react-native/android")
+        }
     }
 }
 
-expoAutolinking {
-    projectRoot = new File(rootDir, "../skydio-expo-app")
-}
-
-extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
-    ex.autolinkLibrariesFromCommand(expoAutolinking.rnConfigCommand, file(rootDir), files("yarn.lock"))
-}
-expoAutolinking.useExpoModules()
-expoAutolinking.useExpoVersionCatalog()
-
 rootProject.name = "SkydioAndroidApp"
-
-includeBuild(expoAutolinking.reactNativeGradlePlugin)
-
 include ':app'

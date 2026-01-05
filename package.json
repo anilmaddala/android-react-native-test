@@ -2,6 +2,9 @@
   "version": "1.0.0",
   "private": true,
   "workspaces": [
-    "skydio-expo-app"
-  ]
+    "skydio-rn-business-logic"
+  ],
+  "devDependencies": {
+    "yaml": "^2.7.0"
+  }
 }
